@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -78,23 +79,32 @@ fun TasksScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            Column(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(bottom = 8.dp)
-                        .clipToBounds()
-                        .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                state.groups.forEach { group ->
-                    TaskGroupCard(
-                        group = group,
-                        onToggle = { onToggleGroup(group.id) },
-                        onTaskClick = { task -> onNavigateToTaskDetail(task.id) },
-                    )
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = CoFlowColors.Blue)
                 }
-                Spacer(Modifier.height(18.dp))
+            } else {
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(bottom = 8.dp)
+                            .clipToBounds()
+                            .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    state.groups.forEach { group ->
+                        TaskGroupCard(
+                            group = group,
+                            onToggle = { onToggleGroup(group.id) },
+                            onTaskClick = { task -> onNavigateToTaskDetail(task.id) },
+                        )
+                    }
+                    Spacer(Modifier.height(18.dp))
+                }
             }
 
             AnimatedVisibility(visible = state.isBottomBarVisible) {
@@ -494,6 +504,7 @@ fun TasksScreen_Default_Preview() {
                                         TaskRowUi(
                                             "1",
                                             "Обновить иконки навигации",
+                                            "project_1",
                                             "Дизайн-система",
                                             "user_1",
                                             "user_1",
@@ -505,6 +516,7 @@ fun TasksScreen_Default_Preview() {
                                         TaskRowUi(
                                             "2",
                                             "Согласовать ТЗ с заказчиком",
+                                            "project_1",
                                             "Сайт",
                                             "user_2",
                                             "user_1",
@@ -525,6 +537,7 @@ fun TasksScreen_Default_Preview() {
                                         TaskRowUi(
                                             "3",
                                             "Разработать онбординг",
+                                            "project_1",
                                             "Мобильное приложение",
                                             "user_1",
                                             "user_3",
@@ -536,6 +549,7 @@ fun TasksScreen_Default_Preview() {
                                         TaskRowUi(
                                             "4",
                                             "Настроить CI/CD",
+                                            "project_1",
                                             "Бэкенд",
                                             "user_3",
                                             "user_2",

@@ -28,6 +28,7 @@ import com.example.coflow.ui.tasks.CreateTaskViewModel
 import com.example.coflow.ui.tasks.EditTaskRoute
 import com.example.coflow.ui.tasks.TaskDetailRoute
 import com.example.coflow.ui.tasks.TasksRoute
+import com.example.coflow.ui.tasks.TasksScreenViewModel
 import com.example.coflow.ui.theme.CoFlowTheme
 
 object Screen {
@@ -56,20 +57,22 @@ class MainActivity : ComponentActivity() {
                 var isAuthenticated by remember {
                     mutableStateOf(
                         runCatching { authRepository.getCurrentUserUid() != null }
-                            .getOrDefault(false)
+                            .getOrDefault(false),
                     )
                 }
 
-                //var isAuthenticated by remember { mutableStateOf(false) } // Для тестирования окна авторизации
+                // var isAuthenticated by remember { mutableStateOf(false) } // Для тестирования окна авторизации
 
                 if (isAuthenticated) {
                     val navController = rememberNavController()
                     val createTaskViewModel: CreateTaskViewModel = viewModel()
+                    val tasksViewModel: TasksScreenViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = Screen.TASKS) {
                         // Экран Мои задачи
                         composable(Screen.TASKS) {
                             TasksRoute(
+                                viewModel = tasksViewModel,
                                 onNavigateToCreateTask = { navController.navigate(Screen.CREATE_TASK) },
                                 onNavigateToTaskDetail = { taskId -> navController.navigate("task_detail/$taskId") },
                                 onNavigateToProjects = { navController.navigateToTab(Screen.PROJECTS) },
@@ -100,7 +103,10 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.CREATE_TASK) {
                             CreateTaskRoute(
                                 onBackClick = { navController.popBackStack() },
-                                onTaskCreated = { navController.popBackStack() },
+                                onTaskCreated = {
+                                    tasksViewModel.refresh()
+                                    navController.popBackStack()
+                                },
                                 onNavigateToAssignees = { navController.navigate(Screen.CHOOSE_ASSIGNEE) },
                                 onNavigateToProject = { navController.navigate(Screen.CHOOSE_PROJECT) },
                                 onNavigateToDate = { navController.navigate(Screen.CHOOSE_DATE) },

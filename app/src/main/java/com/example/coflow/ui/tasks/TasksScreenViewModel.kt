@@ -10,6 +10,9 @@ import com.example.coflow.repositories.FirebaseProjectRepositoryImpl
 import com.example.coflow.repositories.FirebaseTaskRepositoryImpl
 import com.example.coflow.repositories.ProjectRepository
 import com.example.coflow.repositories.TaskRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +27,7 @@ enum class TaskGrouping { STATUS, DEADLINE }
 data class TaskRowUi(
     val id: String,
     val title: String,
+    val projectId: String,
     val projectName: String,
     val authorId: String,
     val assigneeId: String,
@@ -95,22 +99,25 @@ class TasksScreenViewModel(
             // Загружаем проекты пользователя
             projectRepository.getByUserId(currentUid!!).fold(
                 onSuccess = { projects ->
-                    val allFetchedTasks = mutableListOf<TaskModel>()
+                    val allFetchedTasks =
+                        kotlinx.coroutines.coroutineScope {
+                            projects
+                                .map { project ->
+                                    async {
+                                        taskRepository.getByProjectId(project.id).getOrNull() ?: emptyList()
+                                    }
+                                }.awaitAll()
+                                .flatten()
+                        }
                     // Создаем мапу ID -> Название, чтобы быстро подставлять имя проекта в UI
                     val projectMap = projects.associateBy { it.id }
-
-                    // Загружаем задачи для каждого проекта
-                    projects.forEach { project ->
-                        taskRepository.getByProjectId(project.id).getOrNull()?.let { tasks ->
-                            allFetchedTasks.addAll(tasks)
-                        }
-                    }
 
                     // Превращаем TaskModel в TaskRowUi
                     val taskRows =
                         allFetchedTasks.map { task ->
                             TaskRowUi(
                                 id = task.id,
+                                projectId = task.projectId,
                                 title = task.title,
                                 projectName = projectMap[task.projectId]?.title ?: "Без проекта",
                                 authorId = task.authorId,
@@ -192,18 +199,27 @@ class TasksScreenViewModel(
     private fun applyFiltersAndGrouping() {
         _uiState.update { state ->
             var filtered = state.allTaskRows
+            val uid = currentUid
 
-            if (state.selectedFilters.isNotEmpty()) {
-                if (state.selectedFilters.contains("Мои задачи") && currentUid != null) {
-                    filtered = filtered.filter { it.authorId == currentUid || it.assigneeId == currentUid }
-                }
-
-                val selectedProjects = state.selectedFilters.filter { it.startsWith("Проект: ") }.map { it.removePrefix("Проект: ") }
-                if (selectedProjects.isNotEmpty()) {
-                    filtered = filtered.filter { selectedProjects.contains(it.projectName) }
-                }
+            // «Мои задачи»
+            if (state.selectedFilters.contains("Мои задачи") && uid != null) {
+                filtered = filtered.filter { it.authorId == uid || it.assigneeId == uid }
             }
 
+            // Проекты
+            val selectedProjectNames =
+                state.selectedFilters
+                    .filter { it.startsWith("Проект: ") }
+                    .map { it.removePrefix("Проект: ") }
+
+            if (selectedProjectNames.isNotEmpty()) {
+                val selectedProjectIds =
+                    state.allTaskRows
+                        .filter { it.projectName in selectedProjectNames }
+                        .map { it.projectId }
+                        .toSet()
+                filtered = filtered.filter { it.projectId in selectedProjectIds }
+            }
             val newGroups =
                 when (state.currentGrouping) {
                     TaskGrouping.STATUS -> groupTasksByStatus(filtered)
@@ -220,6 +236,10 @@ class TasksScreenViewModel(
 
     fun onNotificationClick() {
         // Заглушка: здесь можно отправить событие или ничего не делать
+    }
+
+    fun refresh() {
+        loadTasks()
     }
 
     // --- Вспомогательные функции для группировки ---
