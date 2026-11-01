@@ -39,19 +39,19 @@ class AuthViewModel(
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
 
     fun onUsernameChange(value: String) {
-        _state.value = _state.value.copy(username = value, usernameError = null)
+        _state.value = _state.value.copy(username = value, usernameError = null, errorMessage = null)
     }
 
     fun onContactChange(value: String) {
-        _state.value = _state.value.copy(contact = value, contactError = null)
+        _state.value = _state.value.copy(contact = value, contactError = null, errorMessage = null)
     }
 
     fun onPasswordChange(value: String) {
-        _state.value = _state.value.copy(password = value, passwordError = null)
+        _state.value = _state.value.copy(password = value, passwordError = null, errorMessage = null)
     }
 
     fun onConfirmChange(value: String) {
-        _state.value = _state.value.copy(confirmPassword = value, confirmError = null)
+        _state.value = _state.value.copy(confirmPassword = value, confirmError = null, errorMessage = null)
     }
 
     fun onToggleMode() {

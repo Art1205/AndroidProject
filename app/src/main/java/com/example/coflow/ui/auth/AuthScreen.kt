@@ -123,6 +123,17 @@ fun AuthScreen(
                     height = 48.dp
                 )
 
+                if (state.errorMessage != null) {
+                    Spacer(modifier = Modifier.height(CoFlowSpacing.Small))
+                    Text(
+                        text = state.errorMessage!!,
+                        modifier = Modifier.fillMaxWidth(),
+                        color = CoFlowColors.Error,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(CoFlowSpacing.Small))
 
                 TextButton(onClick = onToggleMode) {

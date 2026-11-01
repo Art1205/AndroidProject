@@ -137,7 +137,7 @@
 
     <!-- Описание задачи-->
     <string name="description_header">Описание</string>
-    <string name="description_placeholder">Описание отсутстсвует</string>
+    <string name="description_placeholder">Описание отсутствует</string>
 
     <string name="author_header">Автор задачи</string>
     <string name="author_placeholder">Неизвестно</string>
@@ -152,4 +152,9 @@
     </plurals>
 
     <string name="deadline_header">Дата окончания</string>
+
+    <!-- Общие сообщения -->
+    <string name="error_title">Ошибка</string>
+    <string name="ok_button">ОК</string>
+    <string name="no_tasks_placeholder">Нет задач</string>
 </resources>
