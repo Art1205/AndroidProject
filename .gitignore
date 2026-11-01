@@ -23,6 +23,7 @@ output-metadata.json
 # IntelliJ
 *.iml
 .idea/
+.idea/misc.xml
 misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml

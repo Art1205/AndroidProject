@@ -6,9 +6,22 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -16,7 +29,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +51,19 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.coflow.R
+import com.example.coflow.ui.components.CoFlowBottomNavigationBar
+import com.example.coflow.ui.components.CoFlowFabButton
+import com.example.coflow.ui.components.CoFlowGlassCard
+import com.example.coflow.ui.components.CoFlowIcon
+import com.example.coflow.ui.components.CoFlowScreenHeader
+import com.example.coflow.ui.components.NavItem
+import com.example.coflow.ui.components.NotificationBell
+import com.example.coflow.ui.theme.CoFlowColors
+import com.example.coflow.ui.theme.CoFlowGlassStyles
+import com.example.coflow.ui.theme.CoFlowSpacing
+import com.example.coflow.ui.theme.CoFlowTheme
+import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
+import java.time.format.DateTimeFormatter
 import com.example.coflow.models.TaskStatus
 import com.example.coflow.ui.components.*
 import com.example.coflow.ui.theme.*
@@ -64,14 +94,25 @@ fun TasksScreen(
             },
         )
     }
-
-    Box(modifier = Modifier.fillMaxSize().background(coFlowTasksBackgroundBrush())) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = CoFlowSpacing.ScreenHorizontal)) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(coFlowTasksBackgroundBrush()),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = CoFlowSpacing.ScreenHorizontal),
+        ) {
             CoFlowScreenHeader(
                 title = stringResource(R.string.my_tasks_header),
-                subtitle = "${state.activeCount} ${stringResource(
-                    R.string.my_tasks_active,
-                )} · ${state.completedCount} ${stringResource(R.string.my_tasks_completed)}",
+                subtitle = "${state.activeCount} ${
+                    stringResource(
+                        R.string.my_tasks_active,
+                    )
+                } · ${state.completedCount} ${stringResource(R.string.my_tasks_completed)}",
                 trailingContent = {
                     NotificationBell()
                 },
@@ -110,14 +151,21 @@ fun TasksScreen(
             AnimatedVisibility(visible = state.isBottomBarVisible) {
                 Column(
                     modifier =
-                        Modifier.fillMaxWidth().padding(
-                            bottom =
-                                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 2.dp,
-                        ),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                bottom =
+                                    WindowInsets.navigationBars
+                                        .asPaddingValues()
+                                        .calculateBottomPadding() + 2.dp,
+                            ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Row(
-                        modifier = Modifier.widthIn(max = 330.dp).fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .widthIn(max = 330.dp)
+                                .fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -139,7 +187,12 @@ fun TasksScreen(
                     CoFlowBottomNavigationBar(
                         items =
                             listOf(
-                                NavItem(icon = "tasks", title = stringResource(R.string.navigation_tasks), selected = true, onClick = {}),
+                                NavItem(
+                                    icon = "tasks",
+                                    title = stringResource(R.string.navigation_tasks),
+                                    selected = true,
+                                    onClick = {},
+                                ),
                                 NavItem(
                                     icon = "folder",
                                     title = stringResource(R.string.navigation_projects),
@@ -166,9 +219,19 @@ private fun TaskGroupCard(
     onToggle: () -> Unit,
     onTaskClick: (TaskRowUi) -> Unit,
 ) {
-    CoFlowGlassCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle)) {
+    CoFlowGlassCard(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle),
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(text = group.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = CoFlowColors.TextPrimary)
+            Text(
+                text = group.title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = CoFlowColors.TextPrimary,
+            )
             Spacer(Modifier.width(7.dp))
             Box(
                 modifier =
@@ -178,10 +241,19 @@ private fun TaskGroupCard(
                         ).background(CoFlowColors.BlueLight.copy(alpha = 0.38f))
                         .padding(horizontal = 5.dp, vertical = 2.dp),
             ) {
-                Text(text = group.tasks.size.toString(), fontSize = 10.sp, fontWeight = FontWeight.Medium, color = CoFlowColors.Blue)
+                Text(
+                    text = group.tasks.size.toString(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = CoFlowColors.Blue,
+                )
             }
             Spacer(Modifier.weight(1f))
-            Text(text = if (group.isExpanded) "⌄" else "›", color = CoFlowColors.Blue, fontSize = 17.sp)
+            Text(
+                text = if (group.isExpanded) "⌄" else "›",
+                color = CoFlowColors.Blue,
+                fontSize = 17.sp,
+            )
         }
 
         if (group.isExpanded) {
@@ -197,7 +269,13 @@ private fun TaskGroupCard(
                 group.tasks.forEachIndexed { index, task ->
                     TaskRow(task = task, onClick = { onTaskClick(task) })
                     if (index < group.tasks.lastIndex) {
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(CoFlowGlassStyles.BlueBorder.copy(alpha = 0.45f)))
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(CoFlowGlassStyles.BlueBorder.copy(alpha = 0.45f)),
+                        )
                     }
                 }
             }
@@ -210,7 +288,13 @@ private fun TaskRow(
     task: TaskRowUi,
     onClick: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onClick() }) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp)
+                .clickable { onClick() },
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = task.title,
@@ -223,7 +307,11 @@ private fun TaskRow(
             )
             if (task.isOverdue) {
                 Spacer(Modifier.width(4.dp))
-                Text(text = stringResource(R.string.task_outdated), fontSize = 8.sp, color = CoFlowColors.Error)
+                Text(
+                    text = stringResource(R.string.task_outdated),
+                    fontSize = 8.sp,
+                    color = CoFlowColors.Error,
+                )
             }
         }
         Spacer(Modifier.height(3.dp))
@@ -232,7 +320,12 @@ private fun TaskRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = task.projectName, fontSize = 10.sp, color = CoFlowColors.TextSecondary, maxLines = 1)
+            Text(
+                text = task.projectName,
+                fontSize = 10.sp,
+                color = CoFlowColors.TextSecondary,
+                maxLines = 1,
+            )
             Text(text = task.dueDateFormatted, fontSize = 10.sp, color = CoFlowColors.TextSecondary)
         }
     }
@@ -249,12 +342,25 @@ private fun SortFilterPanel(
     onFilterToggle: (String) -> Unit,
     availableFilters: List<String>,
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(modifier = Modifier.weight(1f)) {
             var expanded by remember { mutableStateOf(false) }
-            GlassControlSurface(modifier = Modifier.fillMaxWidth().clickable { expanded = true }) {
+            GlassControlSurface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = true },
+            ) {
                 Column {
-                    Text(text = stringResource(R.string.grouping_header), fontSize = 9.sp, color = CoFlowColors.TextSecondary)
+                    Text(
+                        text = stringResource(R.string.grouping_header),
+                        fontSize = 9.sp,
+                        color = CoFlowColors.TextSecondary,
+                    )
                     Spacer(Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -294,12 +400,18 @@ private fun SortFilterPanel(
                 shadowElevation = 0.dp,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.82f)),
             ) {
-                GlassGroupingOption(title = stringResource(R.string.grouping_status), selected = grouping == TaskGrouping.STATUS) {
+                GlassGroupingOption(
+                    title = stringResource(R.string.grouping_status),
+                    selected = grouping == TaskGrouping.STATUS,
+                ) {
                     onGroupingChange(TaskGrouping.STATUS)
                     expanded =
                         false
                 }
-                GlassGroupingOption(title = stringResource(R.string.grouping_deadline), selected = grouping == TaskGrouping.DEADLINE) {
+                GlassGroupingOption(
+                    title = stringResource(R.string.grouping_deadline),
+                    selected = grouping == TaskGrouping.DEADLINE,
+                ) {
                     onGroupingChange(TaskGrouping.DEADLINE)
                     expanded =
                         false
@@ -309,9 +421,18 @@ private fun SortFilterPanel(
 
         Box(modifier = Modifier.weight(1f)) {
             var expanded by remember { mutableStateOf(false) }
-            GlassControlSurface(modifier = Modifier.fillMaxWidth().clickable { expanded = true }) {
+            GlassControlSurface(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = true },
+            ) {
                 Column {
-                    Text(text = stringResource(R.string.filter_header), fontSize = 9.sp, color = CoFlowColors.TextSecondary)
+                    Text(
+                        text = stringResource(R.string.filter_header),
+                        fontSize = 9.sp,
+                        color = CoFlowColors.TextSecondary,
+                    )
                     Spacer(Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -347,7 +468,10 @@ private fun SortFilterPanel(
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.82f)),
             ) {
                 availableFilters.forEach { option ->
-                    GlassFilterOption(title = option, selected = selectedFilters.contains(option)) { onFilterToggle(option) }
+                    GlassFilterOption(
+                        title = option,
+                        selected = selectedFilters.contains(option),
+                    ) { onFilterToggle(option) }
                 }
             }
         }
@@ -364,10 +488,24 @@ private fun GlassControlSurface(
             modifier
                 .clip(RoundedCornerShape(13.dp))
                 .background(
-                    brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.30f), Color(0xFFDDEAFF).copy(alpha = 0.16f))),
+                    brush =
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.White.copy(alpha = 0.30f),
+                                    Color(0xFFDDEAFF).copy(alpha = 0.16f),
+                                ),
+                        ),
                 ).border(
                     width = 1.dp,
-                    brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.92f), CoFlowColors.Blue.copy(alpha = 0.14f))),
+                    brush =
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.White.copy(alpha = 0.92f),
+                                    CoFlowColors.Blue.copy(alpha = 0.14f),
+                                ),
+                        ),
                     shape = RoundedCornerShape(13.dp),
                 ).padding(horizontal = 9.dp, vertical = 7.dp),
     ) { content() }
@@ -407,7 +545,10 @@ private fun GlassGroupingOption(
                         ),
                 )
             } else {
-                drawCircle(color = CoFlowGlassStyles.BlueBorder, style = Stroke(width = 1.2.dp.toPx()))
+                drawCircle(
+                    color = CoFlowGlassStyles.BlueBorder,
+                    style = Stroke(width = 1.2.dp.toPx()),
+                )
             }
         }
         Spacer(Modifier.width(9.dp))
@@ -452,7 +593,13 @@ private fun GlassFilterOption(
                     ),
             contentAlignment = Alignment.Center,
         ) {
-            if (selected) Text("✓", fontSize = 10.sp, color = Color.White)
+            if (selected) {
+                CoFlowIcon(
+                    name = "check",
+                    modifier = Modifier.size(10.dp),
+                    color = Color.White,
+                )
+            }
         }
         Spacer(Modifier.width(9.dp))
         Text(text = title, fontSize = 13.sp, color = CoFlowColors.TextPrimary, maxLines = 1)
@@ -545,7 +692,7 @@ fun TasksScreen_Default_Preview() {
                                             TaskStatus.IN_PROGRESS,
                                             isDone = false,
                                             isOverdue = true,
-                                        ),
+                                        ), // Просрочено!
                                         TaskRowUi(
                                             "4",
                                             "Настроить CI/CD",
@@ -570,7 +717,13 @@ fun TasksScreen_Default_Preview() {
                         ),
                     currentGrouping = TaskGrouping.STATUS,
                     filterButtonText = "Без фильтра",
-                    availableFilters = listOf("Без фильтра", "Мои задачи", "Проект: Дизайн-система", "Проект: Мобильное приложение"),
+                    availableFilters =
+                        listOf(
+                            "Без фильтра",
+                            "Мои задачи",
+                            "Проект: Дизайн-система",
+                            "Проект: Мобильное приложение",
+                        ),
                     isBottomBarVisible = true,
                     selectedFilters = setOf("Мои задачи"),
                 ),

@@ -2,22 +2,47 @@ package com.example.coflow.ui.projects
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,16 +53,25 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.coflow.R
-import com.example.coflow.ui.components.*
-import com.example.coflow.ui.theme.*
-import com.example.coflow.ui.projects.ProjectRole
+import com.example.coflow.ui.components.CoFlowBottomNavigationBar
+import com.example.coflow.ui.components.CoFlowFabButton
+import com.example.coflow.ui.components.CoFlowGlassCard
+import com.example.coflow.ui.components.CoFlowGlassTextField
+import com.example.coflow.ui.components.CoFlowScreenHeader
+import com.example.coflow.ui.components.NavItem
+import com.example.coflow.ui.components.NotificationBell
+import com.example.coflow.ui.theme.CoFlowColors
+import com.example.coflow.ui.theme.CoFlowGlassStyles
+import com.example.coflow.ui.theme.CoFlowSpacing
+import com.example.coflow.ui.theme.CoFlowTheme
+import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
 
 // Подключение ViewModel и передача данных в UI
 @Composable
 fun ProjectsRoute(
     onNavigateToCreateProject: () -> Unit,
     onNavigateToTasks: () -> Unit,
-    viewModel: ProjectsViewModel = viewModel()
+    viewModel: ProjectsViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -47,7 +81,7 @@ fun ProjectsRoute(
         onFilterMenuToggle = viewModel::onFilterMenuToggle,
         onFilterSelect = viewModel::onFilterSelect,
         onNavigateToCreateProject = onNavigateToCreateProject,
-        onNavigateToTasks = onNavigateToTasks
+        onNavigateToTasks = onNavigateToTasks,
     )
 }
 
@@ -59,7 +93,7 @@ fun ProjectsScreen(
     onFilterMenuToggle: () -> Unit,
     onFilterSelect: (ProjectFilter) -> Unit,
     onNavigateToCreateProject: () -> Unit,
-    onNavigateToTasks: () -> Unit
+    onNavigateToTasks: () -> Unit,
 ) {
     // Стейт для скролла и скрытия нижней панели
     val listState = rememberLazyListState()
@@ -94,18 +128,21 @@ fun ProjectsScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(coFlowTasksBackgroundBrush())
-            .padding(horizontal = CoFlowSpacing.ScreenHorizontal)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(coFlowTasksBackgroundBrush())
+                .padding(horizontal = CoFlowSpacing.ScreenHorizontal),
     ) {
         // Заголовок с подзаголовком и колокольчиком
         CoFlowScreenHeader(
             title = stringResource(R.string.projects_header),
-            subtitle = "${state.activeCount} ${stringResource(R.string.my_tasks_active)} · ${state.archivedCount} ${stringResource(R.string.my_tasks_completed)}",
+            subtitle = "${state.activeCount} ${stringResource(
+                R.string.my_tasks_active,
+            )} · ${state.archivedCount} ${stringResource(R.string.my_tasks_completed)}",
             trailingContent = {
                 NotificationBell()
-            }
+            },
         )
 
         // Поле поиска
@@ -113,7 +150,7 @@ fun ProjectsScreen(
             value = state.searchQuery,
             onValueChange = onSearchQueryChange,
             placeholder = stringResource(R.string.project_search_placeholder),
-            leadingIcon = "search"
+            leadingIcon = "search",
         )
 
         Spacer(Modifier.height(4.dp))
@@ -123,7 +160,7 @@ fun ProjectsScreen(
             state = listState,
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            contentPadding = PaddingValues(bottom = 16.dp),
         ) {
             if (state.projects.isEmpty()) {
                 // Показываем текст, если ничего не найдено
@@ -133,7 +170,7 @@ fun ProjectsScreen(
                         modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
                         color = CoFlowColors.TextSecondary,
                         fontSize = 14.sp,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
                     )
                 }
             } else {
@@ -146,15 +183,16 @@ fun ProjectsScreen(
         // Нижняя панель
         AnimatedVisibility(visible = isBottomPanelVisible) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(
-                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 2.dp
-                ),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier =
+                    Modifier.fillMaxWidth().padding(
+                        bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 2.dp,
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Row(
                     modifier = Modifier.widthIn(max = 330.dp).fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Фильтр
                     ProjectFilterPanel(
@@ -162,7 +200,7 @@ fun ProjectsScreen(
                         selectedFilter = state.selectedFilter,
                         isExpanded = state.isFilterMenuExpanded,
                         onToggle = onFilterMenuToggle,
-                        onFilterSelect = onFilterSelect
+                        onFilterSelect = onFilterSelect,
                     )
 
                     Spacer(Modifier.width(16.dp))
@@ -175,11 +213,22 @@ fun ProjectsScreen(
 
                 // Нижнее меню (Навигация)
                 CoFlowBottomNavigationBar(
-                    items = listOf(
-                        NavItem(icon = "tasks", title = stringResource(R.string.navigation_tasks), selected = false, onClick = onNavigateToTasks),
-                        NavItem(icon = "folder", title = stringResource(R.string.navigation_projects), selected = true, onClick = {}),
-                        NavItem(icon = "person", title = stringResource(R.string.navigation_profile), selected = false, onClick = { /* TODO */ })
-                    )
+                    items =
+                        listOf(
+                            NavItem(
+                                icon = "tasks",
+                                title = stringResource(R.string.navigation_tasks),
+                                selected = false,
+                                onClick = onNavigateToTasks,
+                            ),
+                            NavItem(icon = "folder", title = stringResource(R.string.navigation_projects), selected = true, onClick = {}),
+                            NavItem(
+                                icon = "person",
+                                title = stringResource(R.string.navigation_profile),
+                                selected = false,
+                                onClick = { /* TODO */ },
+                            ),
+                        ),
                 )
             }
         }
@@ -192,11 +241,18 @@ private fun ProjectCard(project: ProjectUiItem) {
     CoFlowGlassCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // Цветная полоска слева (зеленая или желтая)
             val statusColor = if (project.status == ProjectStatus.IN_PROGRESS) Color(0xFF86D3B5) else Color(0xFFF3D06B)
-            Box(modifier = Modifier.width(4.dp).height(36.dp).clip(RoundedCornerShape(4.dp)).background(statusColor))
+            Box(
+                modifier =
+                    Modifier
+                        .width(4.dp)
+                        .height(36.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(statusColor),
+            )
 
             Spacer(Modifier.width(12.dp))
 
@@ -212,11 +268,12 @@ private fun ProjectCard(project: ProjectUiItem) {
 // Маленькая плашка статуса
 @Composable
 private fun ProjectStatusChip(status: ProjectStatus) {
-    val (textRes, bgColor, textColor) = if (status == ProjectStatus.IN_PROGRESS) {
-        Triple(R.string.project_status_in_progress, Color(0xFFE5F6EE), Color(0xFF1B8A5A))
-    } else {
-        Triple(R.string.project_status_archive, Color(0xFFFEF7E0), Color(0xFFB27B00))
-    }
+    val (textRes, bgColor, textColor) =
+        if (status == ProjectStatus.IN_PROGRESS) {
+            Triple(R.string.project_status_in_progress, Color(0xFFE5F6EE), Color(0xFF1B8A5A))
+        } else {
+            Triple(R.string.project_status_archive, Color(0xFFFEF7E0), Color(0xFFB27B00))
+        }
     Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(bgColor).padding(horizontal = 8.dp, vertical = 3.dp)) {
         Text(text = stringResource(textRes), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = textColor)
     }
@@ -229,7 +286,7 @@ private fun ProjectFilterPanel(
     selectedFilter: ProjectFilter,
     isExpanded: Boolean,
     onToggle: () -> Unit,
-    onFilterSelect: (ProjectFilter) -> Unit
+    onFilterSelect: (ProjectFilter) -> Unit,
 ) {
     Box(modifier = modifier) {
         // Сама кнопка (используем GlassControlSurface)
@@ -244,7 +301,7 @@ private fun ProjectFilterPanel(
                         color = CoFlowColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     Spacer(Modifier.width(3.dp))
                     Text("⌄", fontSize = 11.sp, color = CoFlowColors.Blue)
@@ -260,12 +317,12 @@ private fun ProjectFilterPanel(
             containerColor = Color(0xFFF4F8FF).copy(alpha = 0.62f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.82f))
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.82f)),
         ) {
             ProjectFilter.entries.forEach { option ->
                 GlassFilterOption(
                     title = stringResource(option.titleResId),
-                    selected = option == selectedFilter
+                    selected = option == selectedFilter,
                 ) { onFilterSelect(option) }
             }
         }
@@ -274,21 +331,61 @@ private fun ProjectFilterPanel(
 
 // Стеклянная подложка для фильтра
 @Composable
-private fun GlassControlSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+private fun GlassControlSurface(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
     Box(
-        modifier = modifier.clip(RoundedCornerShape(13.dp))
-            .background(brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.30f), Color(0xFFDDEAFF).copy(alpha = 0.16f))))
-            .border(width = 1.dp, brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.92f), CoFlowColors.Blue.copy(alpha = 0.14f))), shape = RoundedCornerShape(13.dp))
-            .padding(horizontal = 9.dp, vertical = 7.dp)
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(13.dp))
+                .background(
+                    brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.30f), Color(0xFFDDEAFF).copy(alpha = 0.16f))),
+                ).border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.92f), CoFlowColors.Blue.copy(alpha = 0.14f))),
+                    shape = RoundedCornerShape(13.dp),
+                ).padding(horizontal = 9.dp, vertical = 7.dp),
     ) { content() }
 }
 
 // Элемент выпадающего списка
 @Composable
-private fun GlassFilterOption(title: String, selected: Boolean, onClick: () -> Unit) {
-    Row(modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (selected) CoFlowColors.BlueLight.copy(alpha = 0.14f) else Color.Transparent).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(16.dp).clip(RoundedCornerShape(5.dp)).background(if (selected) CoFlowColors.Blue else Color.Transparent).border(width = 1.dp, color = if (selected) CoFlowColors.Blue else CoFlowGlassStyles.BlueBorder, shape = RoundedCornerShape(5.dp)), contentAlignment = Alignment.Center) {
-            if (selected) Text("✓", fontSize = 10.sp, color = Color.White)
+private fun GlassFilterOption(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .padding(
+                    horizontal = 6.dp,
+                    vertical = 2.dp,
+                ).fillMaxWidth()
+                .clip(
+                    RoundedCornerShape(12.dp),
+                ).background(
+                    if (selected) CoFlowColors.BlueLight.copy(alpha = 0.14f) else Color.Transparent,
+                ).clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Canvas(modifier = Modifier.size(10.dp)) {
+            if (selected) {
+                drawCircle(
+                    brush =
+                        Brush.linearGradient(
+                            colors = listOf(Color(0xFF6EA5FF), CoFlowColors.Blue),
+                            start = Offset.Zero,
+                            end =
+                                androidx.compose.ui.geometry
+                                    .Offset(size.width, size.height),
+                        ),
+                )
+            } else {
+                drawCircle(color = CoFlowGlassStyles.BlueBorder, style = Stroke(width = 1.2.dp.toPx()))
+            }
         }
         Spacer(Modifier.width(9.dp))
         Text(text = title, fontSize = 13.sp, color = CoFlowColors.TextPrimary, maxLines = 1)
@@ -301,16 +398,18 @@ private fun GlassFilterOption(title: String, selected: Boolean, onClick: () -> U
 private fun ProjectsScreenPreview() {
     CoFlowTheme {
         ProjectsScreen(
-            state = ProjectsUiState(
-                projects = listOf(
-                    ProjectUiItem("1", "Проект", ProjectStatus.IN_PROGRESS, ProjectRole.OWNER)
-                )
-            ),
+            state =
+                ProjectsUiState(
+                    projects =
+                        listOf(
+                            ProjectUiItem("1", "Проект", ProjectStatus.IN_PROGRESS, ProjectRole.OWNER),
+                        ),
+                ),
             onSearchQueryChange = {},
             onFilterMenuToggle = {},
             onFilterSelect = {},
             onNavigateToCreateProject = {},
-            onNavigateToTasks = {}
+            onNavigateToTasks = {},
         )
     }
 }
