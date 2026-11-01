@@ -6,24 +6,32 @@ import androidx.lifecycle.viewModelScope
 import com.example.coflow.models.TaskStatus
 import com.example.coflow.repositories.AuthRepository
 import com.example.coflow.repositories.FirebaseAuthRepositoryImpl
+import com.example.coflow.repositories.FirebaseMembershipRepositoryImpl
 import com.example.coflow.repositories.FirebaseProjectRepositoryImpl
 import com.example.coflow.repositories.FirebaseTaskRepositoryImpl
+import com.example.coflow.repositories.FirebaseUserRepositoryImpl
+import com.example.coflow.repositories.MembershipRepository
 import com.example.coflow.repositories.ProjectRepository
 import com.example.coflow.repositories.TaskRepository
+import com.example.coflow.repositories.UserRepository
 import com.example.coflow.repositories.dto.TaskAddDto
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
+
+// Модель элемента проекта (ID + название).
+data class ProjectItem(
+    val id: String,
+    val title: String,
+)
 
 // Модель данных исполнителя задачи.
 data class Assignee(
@@ -52,18 +60,22 @@ data class CreateTaskUiState(
     val allAssignees: List<Assignee> = emptyList(), // Полный список доступных исполнителей
     val assigneeSearchQuery: String = "", // Текущий текст в поле поиска
     val pendingAssigneeIds: Set<String> = emptySet(), // Временно выбранные ID на экране выбора
+    val isLoadingAssignees: Boolean = false,
     // --- Дата и время ---
     val selectedDueDate: LocalDate = LocalDate.now(),
     val calendarMonth: YearMonth = YearMonth.now(),
     val dueDate: String = "",
     // --- Проект ---
+    val selectedProjectId: String = "",
     val project: String = "",
     val allProjects: List<String> = emptyList(),
+    val allProjectItems: List<ProjectItem> = emptyList(),
     val projectSearchQuery: String = "",
+    val pendingProjectId: String = "",
     val pendingProject: String = "",
-    // --- Статус и валидация ---
-    val titleError: String? = null,
-    val descriptionError: String? = null,
+    val isLoadingProjects: Boolean = false,
+    // --- Статус и ошибки ---
+    val errorMessage: String? = null,
     val isSubmitting: Boolean = false,
 ) {
     /** Отфильтрованный список исполнителей на основе поискового запроса */
@@ -96,7 +108,7 @@ data class CreateTaskUiState(
         get() = pendingAssigneeIds.isNotEmpty()
 
     /** Кнопка "Готово" на экране выбора проекта активна, если проект выбран. */
-    val canConfirmProject: Boolean get() = pendingProject.isNotBlank()
+    val canConfirmProject: Boolean get() = pendingProject.isNotBlank() || pendingProjectId.isNotBlank()
 
     /**
      * Главная кнопка "Создать задачу" активна только при заполнении обязательного поля (название)
@@ -114,7 +126,8 @@ class CreateTaskViewModel(
     private val taskRepository: TaskRepository = FirebaseTaskRepositoryImpl(),
     private val projectRepository: ProjectRepository = FirebaseProjectRepositoryImpl(),
     private val authRepository: AuthRepository = FirebaseAuthRepositoryImpl(),
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val membershipRepository: MembershipRepository = FirebaseMembershipRepositoryImpl(),
+    private val userRepository: UserRepository = FirebaseUserRepositoryImpl(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(CreateTaskUiState())
     val state: StateFlow<CreateTaskUiState> = _state.asStateFlow()
@@ -124,46 +137,107 @@ class CreateTaskViewModel(
         loadProjects()
     }
 
-    private fun loadAssignees() {
+    private fun loadAssignees(projectId: String? = null) {
         viewModelScope.launch {
+            _state.update { it.copy(isLoadingAssignees = true, errorMessage = null) }
             try {
-                val snapshot = db.collection("users").get().await()
-                val assignees =
-                    snapshot.documents.mapNotNull { doc ->
-                        val uid = doc.id
-                        val name = doc.getString("name").orEmpty()
-                        val email = doc.getString("email").orEmpty()
-                        val isDeleted = doc.getBoolean("is_deleted") ?: doc.getBoolean("isDeleted") ?: false
-                        if (isDeleted) return@mapNotNull null
+                val currentUid = authRepository.getCurrentUserUid().orEmpty()
+                val userIds = mutableSetOf<String>()
 
-                        val displayName = name.ifBlank { email }
+                if (currentUid.isNotBlank()) {
+                    userIds.add(currentUid)
+
+                    val targetProjectId = projectId ?: _state.value.selectedProjectId
+
+                    val projectIds =
+                        if (targetProjectId.isNotBlank()) {
+                            listOf(targetProjectId)
+                        } else {
+                            val userMemberships = membershipRepository.getByUserId(currentUid).getOrDefault(emptyList())
+                            val ownerProjects = projectRepository.getByOwnerId(currentUid).getOrDefault(emptyList())
+                            val userProjects = projectRepository.getByUserId(currentUid).getOrDefault(emptyList())
+                            (userMemberships.map { it.projectId } + ownerProjects.map { it.id } + userProjects.map { it.id })
+                                .filter { it.isNotBlank() }
+                                .distinct()
+                        }
+
+                    for (pId in projectIds) {
+                        projectRepository.getById(pId).getOrNull()?.let { proj ->
+                            if (proj.ownerId.isNotBlank()) {
+                                userIds.add(proj.ownerId)
+                            }
+                        }
+                        val membershipsResult = membershipRepository.getByProjectId(pId)
+                        membershipsResult.getOrNull()?.forEach { membership ->
+                            if (membership.userId.isNotBlank()) {
+                                userIds.add(membership.userId)
+                            }
+                        }
+                    }
+                }
+
+                val assignees = mutableListOf<Assignee>()
+                for (uid in userIds) {
+                    val userResult = userRepository.getById(uid)
+                    val user = userResult.getOrNull()
+                    val isDeleted = user?.isDeleted ?: false
+                    if (!isDeleted) {
+                        val displayName =
+                            user?.name?.ifBlank { user.email }
+                                ?: if (uid == currentUid) "Я" else "Пользователь (${uid.take(6)})"
+                        val email = user?.email.orEmpty()
                         val initials = getInitials(displayName)
                         val avatarColor = getAvatarColor(uid)
-
-                        Assignee(
-                            id = uid,
-                            name = displayName,
-                            email = email,
-                            initials = initials,
-                            avatarColor = avatarColor,
+                        assignees.add(
+                            Assignee(
+                                id = uid,
+                                name = displayName,
+                                email = email,
+                                initials = initials,
+                                avatarColor = avatarColor,
+                            ),
                         )
                     }
-                _state.update { it.copy(allAssignees = assignees) }
-            } catch (_: Exception) {
-                // При ошибке сетевого запроса список остаётся пустым
+                }
+
+                _state.update {
+                    it.copy(
+                        allAssignees = assignees,
+                        isLoadingAssignees = false,
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isLoadingAssignees = false,
+                        errorMessage = "Ошибка загрузки исполнителей: ${e.message ?: "неизвестная ошибка"}",
+                    )
+                }
             }
         }
     }
 
     private fun loadProjects() {
         viewModelScope.launch {
+            _state.update { it.copy(isLoadingProjects = true, errorMessage = null) }
             try {
                 val uid = authRepository.getCurrentUserUid().orEmpty()
-                val projectList = mutableListOf<String>()
+                val projectItems = mutableListOf<ProjectItem>()
 
                 if (uid.isNotBlank()) {
                     val userProjectsResult = projectRepository.getByUserId(uid)
                     val ownerProjectsResult = projectRepository.getByOwnerId(uid)
+
+                    if (userProjectsResult.isFailure && ownerProjectsResult.isFailure) {
+                        val error = userProjectsResult.exceptionOrNull() ?: ownerProjectsResult.exceptionOrNull()
+                        _state.update {
+                            it.copy(
+                                isLoadingProjects = false,
+                                errorMessage = "Ошибка загрузки проектов: ${error?.message ?: "неизвестная ошибка"}",
+                            )
+                        }
+                        return@launch
+                    }
 
                     val projects =
                         (
@@ -171,14 +245,25 @@ class CreateTaskViewModel(
                                 ownerProjectsResult.getOrDefault(emptyList())
                         ).distinctBy { it.id }
                             .filterNot { it.isDeleted }
-                            .map { it.title }
+                            .map { ProjectItem(id = it.id, title = it.title) }
 
-                    projectList.addAll(projects)
+                    projectItems.addAll(projects)
                 }
 
-                _state.update { it.copy(allProjects = projectList.distinct()) }
-            } catch (_: Exception) {
-                // При ошибке список остаётся пустым
+                _state.update {
+                    it.copy(
+                        allProjectItems = projectItems,
+                        allProjects = projectItems.map { item -> item.title }.distinct(),
+                        isLoadingProjects = false,
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isLoadingProjects = false,
+                        errorMessage = "Ошибка загрузки проектов: ${e.message ?: "неизвестная ошибка"}",
+                    )
+                }
             }
         }
     }
@@ -210,11 +295,11 @@ class CreateTaskViewModel(
 
     // --- Обработчики основных полей ---
     fun onTitleChange(value: String) {
-        _state.update { it.copy(title = value, titleError = null) }
+        _state.update { it.copy(title = value) }
     }
 
     fun onDescriptionChange(value: String) {
-        _state.update { it.copy(description = value.take(250), descriptionError = null) }
+        _state.update { it.copy(description = value.take(250)) }
     }
 
     // --- Обработчики экрана выбора исполнителей ---
@@ -253,18 +338,34 @@ class CreateTaskViewModel(
     }
 
     fun onPendingProjectChange(project: String) {
-        _state.update { it.copy(pendingProject = project) }
+        val matchedItem = _state.value.allProjectItems.firstOrNull { it.id == project || it.title == project }
+        _state.update {
+            it.copy(
+                pendingProject = matchedItem?.title ?: project,
+                pendingProjectId = matchedItem?.id ?: "",
+            )
+        }
     }
 
     fun confirmProjectSelection(project: String) {
-        if (project.isNotBlank()) {
-            _state.update { it.copy(project = project) }
+        val matchedItem = _state.value.allProjectItems.firstOrNull { it.id == project || it.title == project }
+        val finalTitle = matchedItem?.title ?: project
+        val finalId = matchedItem?.id ?: _state.value.pendingProjectId
+
+        if (finalTitle.isNotBlank() || finalId.isNotBlank()) {
+            _state.update {
+                it.copy(
+                    project = finalTitle,
+                    selectedProjectId = finalId,
+                )
+            }
+            loadAssignees(finalId)
         }
-        _state.update { it.copy(pendingProject = "") }
+        _state.update { it.copy(pendingProject = "", pendingProjectId = "") }
     }
 
     fun cancelProjectSelection() {
-        _state.update { it.copy(pendingProject = "") }
+        _state.update { it.copy(pendingProject = "", pendingProjectId = "") }
     }
 
     // --- Обработчики экрана выбора даты ---
@@ -285,55 +386,17 @@ class CreateTaskViewModel(
     fun onCreateTask(onTaskCreated: (CreateTaskFormData) -> Unit) {
         val current = _state.value
 
-        var hasError = false
-        var titleErr: String? = null
-        var descErr: String? = null
-
-        // Валидация: название — обязательное поле
-        if (current.title.isBlank()) {
-            titleErr = "Название задачи не может быть пустым"
-            hasError = true
-        }
-
-        // Валидация: ограничение описания 250 символами
-        if (current.description.length > 250) {
-            descErr = "Описание не должно превышать 250 символов"
-            hasError = true
-        }
-
-        if (hasError) {
-            _state.update {
-                it.copy(
-                    titleError = titleErr,
-                    descriptionError = descErr,
-                )
-            }
-            return
-        }
-
         _state.update {
             it.copy(
                 isSubmitting = true,
-                titleError = null,
-                descriptionError = null,
+                errorMessage = null,
             )
         }
 
         viewModelScope.launch {
             val authorId = authRepository.getCurrentUserUid().orEmpty()
-            val assigneeId =
-                current.assignees
-                    .firstOrNull()
-                    ?.id
-                    .orEmpty()
-
-            var projectId = ""
-            if (current.project.isNotBlank() && authorId.isNotBlank()) {
-                val userProjects = projectRepository.getByUserId(authorId).getOrDefault(emptyList())
-                val ownerProjects = projectRepository.getByOwnerId(authorId).getOrDefault(emptyList())
-                val allProjectsList = (userProjects + ownerProjects).distinctBy { it.id }
-                projectId = allProjectsList.firstOrNull { it.title == current.project }?.id.orEmpty()
-            }
+            val assigneeId = current.assignees.joinToString(",") { it.id }
+            val projectId = current.selectedProjectId
 
             val deadlineDateTime =
                 try {
@@ -372,11 +435,15 @@ class CreateTaskViewModel(
                     _state.update {
                         it.copy(
                             isSubmitting = false,
-                            titleError = error.message ?: "Ошибка создания задачи",
+                            errorMessage = error.message ?: "Ошибка создания задачи",
                         )
                     }
                 },
             )
         }
+    }
+
+    fun clearError() {
+        _state.update { it.copy(errorMessage = null) }
     }
 }
