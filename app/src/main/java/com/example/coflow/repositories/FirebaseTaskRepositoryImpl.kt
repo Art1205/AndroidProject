@@ -9,6 +9,9 @@ import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import java.time.LocalDateTime
@@ -64,6 +67,35 @@ class FirebaseTaskRepositoryImpl(
             Result.success(documents.mapNotNull { fromDocument(it) })
         } catch (e: Exception) {
             Result.failure(Exception(e.message ?: "Ошибка загрузки задач проекта"))
+        }
+
+    override fun observeTasksByProjectId(id: String): Flow<Result<List<TaskModel>>> =
+        callbackFlow {
+            val projectDocument = projectCollection.document(id)
+            val registration =
+                taskCollection
+                    .whereEqualTo("projectId", projectDocument)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            trySend(
+                                Result.failure(
+                                    Exception(error.message ?: "Ошибка наблюдения за задачами"),
+                                ),
+                            )
+                            close()
+                        } else {
+                            trySend(
+                                Result.success(
+                                    snapshot
+                                        ?.documents
+                                        ?.mapNotNull { fromDocument(it) }
+                                        .orEmpty(),
+                                ),
+                            )
+                        }
+                    }
+
+            awaitClose { registration.remove() }
         }
 
     override suspend fun addTask(task: TaskAddDto): Result<TaskModel> =
