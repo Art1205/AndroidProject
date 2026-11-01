@@ -385,6 +385,10 @@ class CreateTaskViewModel(
     // --- Финальное действие ---
     fun onCreateTask(onTaskCreated: (CreateTaskFormData) -> Unit) {
         val current = _state.value
+        if (current.title.isBlank()) {
+            _state.update { it.copy(errorMessage = "Название задачи не может быть пустым") }
+            return
+        }
 
         _state.update {
             it.copy(
