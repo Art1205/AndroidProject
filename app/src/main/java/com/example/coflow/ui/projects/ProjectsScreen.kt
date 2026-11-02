@@ -57,6 +57,7 @@ import com.example.coflow.ui.components.CoFlowBottomNavigationBar
 import com.example.coflow.ui.components.CoFlowFabButton
 import com.example.coflow.ui.components.CoFlowGlassCard
 import com.example.coflow.ui.components.CoFlowGlassTextField
+import com.example.coflow.ui.components.CoFlowIcon
 import com.example.coflow.ui.components.CoFlowScreenHeader
 import com.example.coflow.ui.components.NavItem
 import com.example.coflow.ui.components.NotificationBell
@@ -306,7 +307,11 @@ private fun ProjectFilterPanel(
                         modifier = Modifier.weight(1f, fill = false),
                     )
                     Spacer(Modifier.width(3.dp))
-                    Text("⌄", fontSize = 11.sp, color = CoFlowColors.Blue)
+                    CoFlowIcon(
+                        name = "chevron_down",
+                        modifier = Modifier.size(14.dp),
+                        color = CoFlowColors.Blue,
+                    )
                 }
             }
         }
