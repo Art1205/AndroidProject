@@ -111,7 +111,12 @@ fun TaskDetailScreen(
 
                         // Описание
                         Column {
-                            Text("Описание", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = CoFlowColors.TextPrimary)
+                            Text(
+                                stringResource(R.string.task_description_label),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = CoFlowColors.TextPrimary,
+                            )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = state.description.ifBlank { stringResource(com.example.coflow.R.string.description_placeholder) },
@@ -122,7 +127,12 @@ fun TaskDetailScreen(
 
                         // Автор
                         Column {
-                            Text("Автор задачи", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = CoFlowColors.TextPrimary)
+                            Text(
+                                stringResource(R.string.task_author_label),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = CoFlowColors.TextPrimary,
+                            )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = state.author.ifBlank { stringResource(R.string.author_placeholder) },
@@ -237,27 +247,29 @@ private fun TagChip(text: String) {
     }
 }
 
+@Composable
 private fun getStatusText(status: TaskStatusUi): String =
     when (status) {
-        TaskStatusUi.TODO -> "К исполнению"
-        TaskStatusUi.IN_PROGRESS -> "В процессе"
-        TaskStatusUi.DONE -> "Сделано"
+        TaskStatusUi.TODO -> stringResource(R.string.task_status_todo)
+        TaskStatusUi.IN_PROGRESS -> stringResource(R.string.task_status_in_progress)
+        TaskStatusUi.DONE -> stringResource(R.string.task_status_done)
     }
 
 @Composable
 fun TaskDetailRoute(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: (String) -> Unit = {}, // <-- ИЗМЕНЕНО: теперь передаем String (Firestore ID)
-    viewModel: TaskDetailScreenViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer {
-                TaskDetailScreenViewModel(createSavedStateHandle())
-            }
-        }
-    ),
+    viewModel: TaskDetailScreenViewModel =
+        viewModel(
+            factory =
+                viewModelFactory {
+                    initializer {
+                        TaskDetailScreenViewModel(createSavedStateHandle())
+                    }
+                },
+        ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     // Слушаем события от ViewModel (например, команду на навигацию)
     LaunchedEffect(Unit) {
@@ -281,19 +293,39 @@ fun TaskDetailRoute(
         state.isLoading -> {
             Box(
                 modifier = Modifier.fillMaxSize().background(coFlowTasksBackgroundBrush()),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(color = CoFlowColors.Blue)
             }
         }
-        state.errorMessage != null -> {
+
+        state.errorMessage != null || state.errorMessageResId != null -> {
+            val errorResId = state.errorMessageResId
+            val errorMsg = state.errorMessage
+
+            val message =
+                when {
+                    errorResId != null && errorMsg != null -> {
+                        stringResource(errorResId, errorMsg)
+                    }
+
+                    errorResId != null -> {
+                        stringResource(errorResId)
+                    }
+
+                    else -> {
+                        stringResource(R.string.error_prefix, errorMsg.orEmpty())
+                    }
+                }
+
             Box(
                 modifier = Modifier.fillMaxSize().background(coFlowTasksBackgroundBrush()),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
-                Text(text = "Ошибка: ${state.errorMessage}", color = CoFlowColors.Error)
+                Text(text = message, color = CoFlowColors.Error)
             }
         }
+
         else -> {
             TaskDetailScreen(
                 state = state,

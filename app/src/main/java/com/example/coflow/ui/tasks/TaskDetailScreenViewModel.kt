@@ -3,6 +3,7 @@ package com.example.coflow.ui.tasks
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.coflow.R
 import com.example.coflow.models.TaskStatus
 import com.example.coflow.repositories.AuthRepository
 import com.example.coflow.repositories.FirebaseAuthRepositoryImpl
@@ -21,6 +22,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 enum class TaskStatusUi {
@@ -44,6 +47,7 @@ data class TaskDetailUiState(
     val bottomActionText: String = "",
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
+    val errorMessageResId: Int? = null,
 )
 
 class TaskDetailScreenViewModel(
@@ -53,7 +57,6 @@ class TaskDetailScreenViewModel(
     private val userRepository: UserRepository = FirebaseUserRepositoryImpl(),
     private val authRepository: AuthRepository = FirebaseAuthRepositoryImpl(),
 ) : ViewModel() {
-
     // События для UI (например, навигация или показ Toast)
     private val _uiEvent = Channel<UiEvent>()
     val uiEvent = _uiEvent.receiveAsFlow()
@@ -68,7 +71,12 @@ class TaskDetailScreenViewModel(
         if (taskId.isNotBlank()) {
             loadTask()
         } else {
-            _state.update { it.copy(isLoading = false, errorMessage = "ID задачи не передан") }
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessageResId = R.string.error_task_id_missing,
+                )
+            }
         }
     }
 
@@ -79,19 +87,34 @@ class TaskDetailScreenViewModel(
 
             // 1. Загружаем саму задачу из Firestore
             val taskResult = taskRepository.getById(taskId)
-            val task = taskResult.getOrElse { error ->
-                _state.update { it.copy(isLoading = false, errorMessage = error.message) }
-                return@launch
-            }
+            val task =
+                taskResult.getOrElse { error ->
+                    _state.update { it.copy(isLoading = false, errorMessage = error.message) }
+                    return@launch
+                }
 
             // 2. Подгружаем связанные данные (проект, автора, исполнителя)
-            val projectName = if (task.projectId.isNotBlank()) {
-                projectRepository.getById(task.projectId).getOrNull()?.title.orEmpty()
-            } else ""
+            val projectName =
+                if (task.projectId.isNotBlank()) {
+                    projectRepository
+                        .getById(task.projectId)
+                        .getOrNull()
+                        ?.title
+                        .orEmpty()
+                } else {
+                    ""
+                }
 
-            val authorName = if (task.authorId.isNotBlank()) {
-                userRepository.getById(task.authorId).getOrNull()?.name.orEmpty()
-            } else ""
+            val authorName =
+                if (task.authorId.isNotBlank()) {
+                    userRepository
+                        .getById(task.authorId)
+                        .getOrNull()
+                        ?.name
+                        .orEmpty()
+                } else {
+                    ""
+                }
 
             val assigneesList = mutableListOf<String>()
             if (task.assigneeId.isNotBlank()) {
@@ -103,25 +126,34 @@ class TaskDetailScreenViewModel(
             }
 
             // 3. Вычисляем UI-поля (просрочена ли, формат даты)
-            val isOverdue = task.deadline.toLocalDate().isBefore(LocalDate.now()) && task.status != TaskStatus.DONE
+            val isOverdue =
+                task.deadline.isBefore(
+                    LocalDateTime.now(ZoneOffset.UTC),
+                ) && task.status != TaskStatus.DONE
             val formattedDate = task.deadline.format(DateTimeFormatter.ofPattern("dd.MM.yy"))
 
             val isAuthor = task.authorId == currentUid
             val isAssignee = task.assigneeId == currentUid
 
             // Логика нижней кнопки
-            val (showAction, actionText, canEdit) = when (task.status) {
-                TaskStatus.TODO -> Triple(true, "Взять задачу", isAuthor)
-                TaskStatus.IN_PROGRESS -> Triple(true, "Выполнить", isAuthor || isAssignee)
-                TaskStatus.DONE -> Triple(false, "", false)
-            }
+            val (showAction, actionText, canEdit) =
+                when (task.status) {
+                    TaskStatus.TODO -> Triple(true, "Взять задачу", isAuthor)
+                    TaskStatus.IN_PROGRESS -> Triple(true, "Выполнить", isAuthor || isAssignee)
+                    TaskStatus.DONE -> Triple(false, "", false)
+                }
 
             // 4. Обновляем стейт
             _state.update {
                 it.copy(
                     id = task.id,
                     title = task.title,
-                    status = TaskStatusUi.valueOf(task.status.name),
+                    status =
+                        when (task.status) {
+                            TaskStatus.TODO -> TaskStatusUi.TODO
+                            TaskStatus.IN_PROGRESS -> TaskStatusUi.IN_PROGRESS
+                            TaskStatus.DONE -> TaskStatusUi.DONE
+                        },
                     projectName = projectName,
                     description = task.description,
                     author = authorName,
@@ -131,7 +163,7 @@ class TaskDetailScreenViewModel(
                     canEdit = canEdit,
                     showBottomAction = showAction,
                     bottomActionText = actionText,
-                    isLoading = false
+                    isLoading = false,
                 )
             }
         }
@@ -143,21 +175,23 @@ class TaskDetailScreenViewModel(
         if (current.isLoading || !current.showBottomAction) return
 
         val currentUid = authRepository.getCurrentUserUid().orEmpty()
-        val newStatus = when (current.status) {
-            TaskStatusUi.TODO -> TaskStatus.IN_PROGRESS
-            TaskStatusUi.IN_PROGRESS -> TaskStatus.DONE
-            TaskStatusUi.DONE -> return
-        }
+        val newStatus =
+            when (current.status) {
+                TaskStatusUi.TODO -> TaskStatus.IN_PROGRESS
+                TaskStatusUi.IN_PROGRESS -> TaskStatus.DONE
+                TaskStatusUi.DONE -> return
+            }
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
 
             // Создаем DTO для обновления задачи
-            val updateDto = TaskUpdateDto(
-                status = newStatus,
-                // Если берем задачу (переводим в IN_PROGRESS), назначаем себя исполнителем
-                assigneeId = if (newStatus == TaskStatus.IN_PROGRESS) currentUid else null
-            )
+            val updateDto =
+                TaskUpdateDto(
+                    status = newStatus,
+                    // Если берем задачу (переводим в IN_PROGRESS), назначаем себя исполнителем
+                    assigneeId = if (newStatus == TaskStatus.IN_PROGRESS) currentUid else null,
+                )
 
             val result = taskRepository.updateTask(taskId, updateDto)
 
@@ -167,7 +201,7 @@ class TaskDetailScreenViewModel(
                 },
                 onFailure = { error ->
                     _state.update { it.copy(isLoading = false, errorMessage = error.message) }
-                }
+                },
             )
         }
     }

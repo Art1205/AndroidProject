@@ -70,7 +70,12 @@
         <string name="task_outdated">Expired</string>
 
         <!-- Группы -->
-        <string name="tasks_group_planned">For execution</string>
+    <string name="error_not_authorized">User not logged in</string>
+    <string name="error_load_projects">Error loading projects</string>
+    <string name="error_system">System error: %s</string>
+    <string name="error_task_id_missing">Task ID not provided</string>
+    <string name="error_prefix">Error: %s</string>
+    <string name="tasks_group_planned">For execution</string>
         <string name="tasks_group_active">In process</string>
         <string name="tasks_group_completed">Completed</string>
 
@@ -147,6 +152,12 @@
         <item quantity="other">You and %d more assignees</item>
     </plurals>
 
+    <string name="task_description_label">Description</string>
+    <string name="task_author_label">Task author</string>
+    <string name="task_status_todo">To be done</string>
+    <string name="task_status_in_progress">In progress</string>
+    <string name="task_status_done">Done</string>
+    <string name="assignee_you">You</string>
     <string name="deadline_header">Deadline</string>
 
     <!-- Общие сообщения -->
