@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             TaskDetailRoute(
                                 onNavigateBack = { navController.popBackStack() },
-                                onNavigateToEdit = { },
+                                onNavigateToEdit = { taskId -> navController.navigate("edit_task/$taskId") },
                             )
                         }
 
@@ -111,6 +111,28 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToProject = { navController.navigate(Screen.CHOOSE_PROJECT) },
                                 onNavigateToDate = { navController.navigate(Screen.CHOOSE_DATE) },
                                 viewModel = createTaskViewModel,
+                            )
+                        }
+
+                        // Экран редактирования задачи
+                        composable(
+                            route = Screen.EDIT_TASK,
+                            arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+                        ) {
+                            EditTaskRoute(
+                                onNavigateBack = { navController.popBackStack() },
+                                onTaskSaved = {
+                                    tasksViewModel.refresh()
+                                    navController.popBackStack()
+                                },
+                                onTaskDeleted = {
+                                    tasksViewModel.refresh()
+                                    navController.popBackStack()
+                                },
+                                // Экраны выбора для edit пока не подключены — заглушки
+                                onNavigateToAssignees = { },
+                                onNavigateToProject = { },
+                                onNavigateToDate = { },
                             )
                         }
 
