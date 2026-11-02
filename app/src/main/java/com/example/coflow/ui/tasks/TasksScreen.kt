@@ -51,8 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.coflow.R
-import com.example.coflow.models.TaskStatus
-import com.example.coflow.ui.components.*
 import com.example.coflow.ui.components.CoFlowBottomNavigationBar
 import com.example.coflow.ui.components.CoFlowFabButton
 import com.example.coflow.ui.components.CoFlowGlassCard
@@ -60,13 +58,15 @@ import com.example.coflow.ui.components.CoFlowIcon
 import com.example.coflow.ui.components.CoFlowScreenHeader
 import com.example.coflow.ui.components.NavItem
 import com.example.coflow.ui.components.NotificationBell
-import com.example.coflow.ui.theme.*
 import com.example.coflow.ui.theme.CoFlowColors
 import com.example.coflow.ui.theme.CoFlowGlassStyles
 import com.example.coflow.ui.theme.CoFlowSpacing
 import com.example.coflow.ui.theme.CoFlowTheme
 import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
 import java.time.format.DateTimeFormatter
+import com.example.coflow.models.TaskStatus
+import com.example.coflow.ui.components.*
+import com.example.coflow.ui.theme.*
 
 @Composable
 fun TasksScreen(
@@ -74,29 +74,13 @@ fun TasksScreen(
     onNavigateToCreateTask: () -> Unit,
     onNavigateToTaskDetail: (String) -> Unit,
     onGroupingChange: (TaskGrouping) -> Unit,
-    onFilterToggle: (String) -> Unit,
+    onFilterToggle: (TaskFilterItem) -> Unit,
     onToggleGroup: (String) -> Unit,
     onNavigateToProjects: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onClearError: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
-
-    // Вычисляем текст для кнопки фильтра
-    val filterButtonText =
-        if (state.selectedFilters.isEmpty()) {
-            stringResource(R.string.filter_none)
-        } else {
-            state.selectedFilters
-                .mapNotNull { id ->
-                    val item = state.availableFilters.find { it.id == id }
-                    when (item?.type) {
-                        FilterType.MINE -> stringResource(R.string.filter_mine)
-                        FilterType.PROJECT -> item.title
-                        else -> null
-                    }
-                }.joinToString(", ")
-        }
 
     if (state.errorMessage != null) {
         AlertDialog(
@@ -189,7 +173,7 @@ fun TasksScreen(
                             modifier = Modifier.weight(1f),
                             grouping = state.currentGrouping,
                             onGroupingChange = onGroupingChange,
-                            filterButtonText = filterButtonText,
+                            filterButtonText = state.filterButtonText,
                             onFilterToggle = onFilterToggle,
                             selectedFilters = state.selectedFilters,
                             availableFilters = state.availableFilters,
@@ -243,7 +227,7 @@ private fun TaskGroupCard(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = stringResource(group.titleResId),
+                text = group.title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = CoFlowColors.TextPrimary,
@@ -265,10 +249,10 @@ private fun TaskGroupCard(
                 )
             }
             Spacer(Modifier.weight(1f))
-            CoFlowIcon(
-                name = if (group.isExpanded) "chevron_up" else "chevron",
-                modifier = Modifier.size(18.dp),
+            Text(
+                text = if (group.isExpanded) "⌄" else "›",
                 color = CoFlowColors.Blue,
+                fontSize = 17.sp,
             )
         }
 
@@ -355,7 +339,7 @@ private fun SortFilterPanel(
     onGroupingChange: (TaskGrouping) -> Unit,
     selectedFilters: Set<String>,
     filterButtonText: String,
-    onFilterToggle: (String) -> Unit,
+    onFilterToggle: (TaskFilterItem) -> Unit,
     availableFilters: List<TaskFilterItem>,
 ) {
     Row(
@@ -392,11 +376,8 @@ private fun SortFilterPanel(
                             color = CoFlowColors.TextPrimary,
                             maxLines = 1,
                         )
-                        CoFlowIcon(
-                            name = "chevron_down",
-                            modifier = Modifier.size(14.dp),
-                            color = CoFlowColors.Blue,
-                        )
+                        Spacer(Modifier.width(3.dp))
+                        Text("⌄", fontSize = 11.sp, color = CoFlowColors.Blue)
                     }
                 }
             }
@@ -463,11 +444,7 @@ private fun SortFilterPanel(
                             modifier = Modifier.weight(1f, fill = false),
                         )
                         Spacer(Modifier.width(3.dp))
-                        CoFlowIcon(
-                            name = "chevron_down",
-                            modifier = Modifier.size(14.dp),
-                            color = CoFlowColors.Blue,
-                        )
+                        Text("⌄", fontSize = 11.sp, color = CoFlowColors.Blue)
                     }
                 }
             }
@@ -490,24 +467,11 @@ private fun SortFilterPanel(
                 shadowElevation = 0.dp,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.82f)),
             ) {
-                availableFilters.forEach { item ->
-                    val displayName =
-                        when (item.type) {
-                            FilterType.NONE -> stringResource(R.string.filter_none)
-                            FilterType.MINE -> stringResource(R.string.filter_mine)
-                            FilterType.PROJECT -> item.title
-                        }
-                    val isSelected =
-                        if (item.type == FilterType.NONE) {
-                            selectedFilters.isEmpty()
-                        } else {
-                            selectedFilters.contains(item.id)
-                        }
-
+                availableFilters.forEach { option ->
                     GlassFilterOption(
-                        title = displayName,
-                        selected = isSelected,
-                    ) { onFilterToggle(item.id) }
+                        title = if (option.type == FilterType.NONE) "Без фильтра" else if (option.type == FilterType.MINE) "Мои задачи" else "Проект: ${option.title}",
+                        selected = selectedFilters.contains(option.id),
+                    ) { onFilterToggle(option) }
                 }
             }
         }
@@ -638,14 +602,7 @@ private fun GlassFilterOption(
             }
         }
         Spacer(Modifier.width(9.dp))
-        Text(
-            text = title,
-            fontSize = 13.sp,
-            color = CoFlowColors.TextPrimary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            lineHeight = 16.sp,
-        )
+        Text(text = title, fontSize = 13.sp, color = CoFlowColors.TextPrimary, maxLines = 1)
     }
 }
 
@@ -686,7 +643,7 @@ fun TasksScreen_Default_Preview() {
                         listOf(
                             TaskGroupUi(
                                 id = "TODO",
-                                titleResId = R.string.tasks_group_planned,
+                                title = "К исполнению",
                                 count = 2,
                                 isExpanded = true,
                                 tasks =
@@ -719,7 +676,7 @@ fun TasksScreen_Default_Preview() {
                             ),
                             TaskGroupUi(
                                 id = "IN_PROGRESS",
-                                titleResId = R.string.tasks_group_active,
+                                title = "В процессе",
                                 count = 3,
                                 isExpanded = false,
                                 tasks =
@@ -752,20 +709,20 @@ fun TasksScreen_Default_Preview() {
                             ),
                             TaskGroupUi(
                                 id = "DONE",
-                                titleResId = R.string.tasks_group_completed,
+                                title = "Сделано",
                                 count = 12,
                                 isExpanded = false,
                                 tasks = emptyList(),
                             ),
                         ),
                     currentGrouping = TaskGrouping.STATUS,
-                    availableFilters =
-                        listOf(
-                            TaskFilterItem("NONE", "", FilterType.NONE),
-                            TaskFilterItem("MINE", "", FilterType.MINE),
-                            TaskFilterItem("project_1", "Дизайн-система", FilterType.PROJECT),
-                            TaskFilterItem("project_2", "Мобильное приложение", FilterType.PROJECT),
-                        ),
+                    filterButtonText = "Без фильтра",
+                    availableFilters = listOf(
+                        TaskFilterItem("NONE", "", FilterType.NONE),
+                        TaskFilterItem("MINE", "", FilterType.MINE),
+                        TaskFilterItem("project_1", "Дизайн-система", FilterType.PROJECT),
+                        TaskFilterItem("project_2", "Мобильное приложение", FilterType.PROJECT),
+                    ),
                     isBottomBarVisible = true,
                     selectedFilters = setOf("MINE"),
                 ),
