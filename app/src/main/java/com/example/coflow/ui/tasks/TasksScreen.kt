@@ -243,7 +243,7 @@ private fun TaskGroupCard(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = group.title,
+                text = stringResource(group.titleResId),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = CoFlowColors.TextPrimary,
@@ -686,7 +686,7 @@ fun TasksScreen_Default_Preview() {
                         listOf(
                             TaskGroupUi(
                                 id = "TODO",
-                                title = "К исполнению",
+                                titleResId = R.string.tasks_group_planned,
                                 count = 2,
                                 isExpanded = true,
                                 tasks =
@@ -719,7 +719,7 @@ fun TasksScreen_Default_Preview() {
                             ),
                             TaskGroupUi(
                                 id = "IN_PROGRESS",
-                                title = "В процессе",
+                                titleResId = R.string.tasks_group_active,
                                 count = 3,
                                 isExpanded = false,
                                 tasks =
@@ -752,7 +752,7 @@ fun TasksScreen_Default_Preview() {
                             ),
                             TaskGroupUi(
                                 id = "DONE",
-                                title = "Сделано",
+                                titleResId = R.string.tasks_group_completed,
                                 count = 12,
                                 isExpanded = false,
                                 tasks = emptyList(),

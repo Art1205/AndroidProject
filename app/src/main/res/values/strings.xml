@@ -73,6 +73,10 @@
     <string name="tasks_group_active">В процессе</string>
     <string name="tasks_group_completed">Завершены</string>
 
+    <string name="tasks_group_overdue">Просрочено</string>
+    <string name="tasks_group_upcoming">Предстоящие</string>
+    <string name="tasks_group_completed_deadline">Завершенные</string>
+
     <string name="tasks_group_today">Сегодня</string>
     <string name="tasks_group_this_week">Эта неделя</string>
     <string name="tasks_group_next_week">Следующая неделя</string>

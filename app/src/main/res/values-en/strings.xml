@@ -74,7 +74,10 @@
         <string name="tasks_group_active">In process</string>
         <string name="tasks_group_completed">Completed</string>
 
-        <string name="tasks_group_today">Today</string>
+    <string name="tasks_group_overdue">Overdue</string>
+    <string name="tasks_group_upcoming">Upcoming</string>
+    <string name="tasks_group_completed_deadline">Completed</string>
+    <string name="tasks_group_today">Today</string>
         <string name="tasks_group_this_week">This week</string>
         <string name="tasks_group_next_week">Next week</string>
 

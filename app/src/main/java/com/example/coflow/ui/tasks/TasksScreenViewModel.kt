@@ -2,6 +2,7 @@ package com.example.coflow.ui.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.coflow.R
 import com.example.coflow.models.TaskModel
 import com.example.coflow.models.TaskStatus
 import com.example.coflow.repositories.AuthRepository
@@ -47,7 +48,7 @@ data class TaskRowUi(
 
 data class TaskGroupUi(
     val id: String,
-    val title: String,
+    val titleResId: Int,
     val count: Int,
     val isExpanded: Boolean,
     val tasks: List<TaskRowUi>,
@@ -267,9 +268,9 @@ class TasksScreenViewModel(
         val done = tasks.filter { it.status == TaskStatus.DONE }
 
         return listOf(
-            TaskGroupUi("TODO", "К исполнению", todo.size, isExpanded = true, tasks = todo),
-            TaskGroupUi("IN_PROGRESS", "В процессе", inProgress.size, isExpanded = false, tasks = inProgress),
-            TaskGroupUi("DONE", "Сделано", done.size, isExpanded = false, tasks = done),
+            TaskGroupUi("TODO", R.string.tasks_group_planned, todo.size, isExpanded = true, tasks = todo),
+            TaskGroupUi("IN_PROGRESS", R.string.tasks_group_active, inProgress.size, isExpanded = false, tasks = inProgress),
+            TaskGroupUi("DONE", R.string.tasks_group_completed, done.size, isExpanded = false, tasks = done),
         )
     }
 
@@ -279,9 +280,9 @@ class TasksScreenViewModel(
         val done = tasks.filter { it.isDone }
 
         return listOf(
-            TaskGroupUi("OVERDUE", "Просрочено", overdue.size, isExpanded = true, tasks = overdue),
-            TaskGroupUi("UPCOMING", "Предстоящие", upcoming.size, isExpanded = false, tasks = upcoming),
-            TaskGroupUi("COMPLETED", "Завершенные", done.size, isExpanded = false, tasks = done),
+            TaskGroupUi("OVERDUE", R.string.tasks_group_overdue, overdue.size, isExpanded = true, tasks = overdue),
+            TaskGroupUi("UPCOMING", R.string.tasks_group_upcoming, upcoming.size, isExpanded = false, tasks = upcoming),
+            TaskGroupUi("COMPLETED", R.string.tasks_group_completed, done.size, isExpanded = false, tasks = done),
         )
     }
 
