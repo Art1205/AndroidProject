@@ -137,9 +137,7 @@ fun ProjectsScreen(
         // Заголовок с подзаголовком и колокольчиком
         CoFlowScreenHeader(
             title = stringResource(R.string.projects_header),
-            subtitle = "${state.activeCount} ${stringResource(
-                R.string.my_tasks_active,
-            )} · ${state.archivedCount} ${stringResource(R.string.my_tasks_completed)}",
+            subtitle = "${state.activeCount} ${stringResource(R.string.my_tasks_active)}",
             trailingContent = {
                 NotificationBell()
             },
@@ -243,15 +241,14 @@ private fun ProjectCard(project: ProjectUiItem) {
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Цветная полоска слева (зеленая или желтая)
-            val statusColor = if (project.status == ProjectStatus.IN_PROGRESS) Color(0xFF86D3B5) else Color(0xFFF3D06B)
+            // Цветная полоска слева
             Box(
                 modifier =
                     Modifier
                         .width(4.dp)
                         .height(36.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(statusColor),
+                        .background(Color(0xFF86D3B5)),
             )
 
             Spacer(Modifier.width(12.dp))
@@ -259,7 +256,7 @@ private fun ProjectCard(project: ProjectUiItem) {
             Column {
                 Text(text = project.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = CoFlowColors.TextPrimary)
                 Spacer(Modifier.height(6.dp))
-                ProjectStatusChip(status = project.status)
+                ProjectStatusChip()
             }
         }
     }
@@ -267,15 +264,20 @@ private fun ProjectCard(project: ProjectUiItem) {
 
 // Маленькая плашка статуса
 @Composable
-private fun ProjectStatusChip(status: ProjectStatus) {
-    val (textRes, bgColor, textColor) =
-        if (status == ProjectStatus.IN_PROGRESS) {
-            Triple(R.string.project_status_in_progress, Color(0xFFE5F6EE), Color(0xFF1B8A5A))
-        } else {
-            Triple(R.string.project_status_archive, Color(0xFFFEF7E0), Color(0xFFB27B00))
-        }
-    Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(bgColor).padding(horizontal = 8.dp, vertical = 3.dp)) {
-        Text(text = stringResource(textRes), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = textColor)
+private fun ProjectStatusChip() {
+    Box(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFFE5F6EE))
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.project_status_in_progress),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF1B8A5A),
+        )
     }
 }
 
@@ -402,7 +404,7 @@ private fun ProjectsScreenPreview() {
                 ProjectsUiState(
                     projects =
                         listOf(
-                            ProjectUiItem("1", "Проект", ProjectStatus.IN_PROGRESS, ProjectRole.OWNER),
+                            ProjectUiItem("1", "Проект", ProjectRole.OWNER),
                         ),
                 ),
             onSearchQueryChange = {},

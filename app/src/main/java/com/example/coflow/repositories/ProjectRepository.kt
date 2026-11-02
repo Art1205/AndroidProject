@@ -3,6 +3,7 @@ package com.example.coflow.repositories
 import com.example.coflow.models.ProjectModel
 import com.example.coflow.repositories.dto.ProjectAddDto
 import com.example.coflow.repositories.dto.ProjectUpdateDto
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Проекты (коллекция `projects`).
@@ -41,6 +42,15 @@ interface ProjectRepository {
      * Список участников берётся из коллекции `memberships`.
      */
     suspend fun getByUserId(userId: String): Result<List<ProjectModel>>
+
+    /**
+     * Наблюдает за неудалёнными проектами пользователя в реальном времени.
+     *
+     * В поток попадают проекты, где пользователь является владельцем, и проекты,
+     * в которых он состоит как участник. Изменения членства и документов
+     * проектов приходят без повторной подписки.
+     */
+    fun observeProjectsByUserId(userId: String): Flow<Result<List<ProjectModel>>>
 
     /**
      * Создаёт проект из [ProjectAddDto].
