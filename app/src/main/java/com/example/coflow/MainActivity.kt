@@ -53,15 +53,15 @@ class MainActivity : ComponentActivity() {
             CoFlowTheme {
                 val authRepository = remember { FirebaseAuthRepositoryImpl() }
 
-//                // Для того, чтобы не требовалась авторизация при каждом запуске
-//                var isAuthenticated by remember {
-//                    mutableStateOf(
-//                        runCatching { authRepository.getCurrentUserUid() != null }
-//                            .getOrDefault(true),
-//                    )
-//                }
+                // Для того, чтобы не требовалась авторизация при каждом запуске
+                var isAuthenticated by remember {
+                    mutableStateOf(
+                        runCatching { authRepository.getCurrentUserUid() != null }
+                            .getOrDefault(true),
+                    )
+                }
 
-                var isAuthenticated by remember { mutableStateOf(false) } // Для тестирования окна авторизации
+                // var isAuthenticated by remember { mutableStateOf(false) } // Для тестирования окна авторизации
 
                 if (isAuthenticated) {
                     val navController = rememberNavController()

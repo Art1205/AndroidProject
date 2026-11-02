@@ -2,6 +2,7 @@ package com.example.coflow.ui.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.coflow.R
 import com.example.coflow.models.TaskStatus
 import com.example.coflow.repositories.AuthRepository
 import com.example.coflow.repositories.FirebaseAuthRepositoryImpl
@@ -9,6 +10,7 @@ import com.example.coflow.repositories.FirebaseProjectRepositoryImpl
 import com.example.coflow.repositories.FirebaseTaskRepositoryImpl
 import com.example.coflow.repositories.ProjectRepository
 import com.example.coflow.repositories.TaskRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,7 +47,7 @@ data class TaskRowUi(
 
 data class TaskGroupUi(
     val id: String,
-    val title: String,
+    val titleResId: Int,
     val count: Int,
     val isExpanded: Boolean,
     val tasks: List<TaskRowUi>,
@@ -57,11 +59,11 @@ data class TasksUiState(
     val groups: List<TaskGroupUi>,
     val currentGrouping: TaskGrouping,
     val selectedFilters: Set<String>,
-    val filterButtonText: String,
     val availableFilters: List<TaskFilterItem>,
     val isBottomBarVisible: Boolean,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val errorMessageResId: Int? = null,
     val allTaskRows: List<TaskRowUi> = emptyList(),
 )
 
@@ -78,11 +80,11 @@ class TasksScreenViewModel(
                 groups = emptyList(),
                 currentGrouping = TaskGrouping.STATUS,
                 selectedFilters = emptySet(),
-                filterButtonText = "Без фильтра",
-                availableFilters = listOf(
-                    TaskFilterItem("NONE", "", FilterType.NONE),
-                    TaskFilterItem("MINE", "", FilterType.MINE),
-                ), // Начальные фильтры
+                availableFilters =
+                    listOf(
+                        TaskFilterItem("NONE", "", FilterType.NONE),
+                        TaskFilterItem("MINE", "", FilterType.MINE),
+                    ),
                 isBottomBarVisible = true,
                 isLoading = true,
             ),
@@ -100,109 +102,128 @@ class TasksScreenViewModel(
         // Отменяем предыдущую подписку, если она была
         observeJob?.cancel()
 
-        observeJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            try {
-                val uid = authRepository.getCurrentUserUid()
-                if (uid == null) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = "Пользователь не авторизован",
-                        )
+        observeJob =
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+                try {
+                    val uid = authRepository.getCurrentUserUid()
+                    if (uid == null) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessageResId = R.string.error_not_authorized,
+                            )
+                        }
+                        return@launch
                     }
-                    return@launch
-                }
-                currentUid = uid
+                    currentUid = uid
 
-                // Загружаем проекты: где я участник И где я владелец
-                val userProjectsResult = projectRepository.getByUserId(uid)
-                val ownerProjectsResult = projectRepository.getByOwnerId(uid)
+                    // Загружаем проекты: где я участник И где я владелец
+                    val userProjectsResult = projectRepository.getByUserId(uid)
+                    val ownerProjectsResult = projectRepository.getByOwnerId(uid)
 
-                if (userProjectsResult.isFailure && ownerProjectsResult.isFailure) {
-                    val error = userProjectsResult.exceptionOrNull()
-                        ?: ownerProjectsResult.exceptionOrNull()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error?.message ?: "Ошибка загрузки проектов",
-                        )
+                    if (userProjectsResult.isFailure && ownerProjectsResult.isFailure) {
+                        val error =
+                            userProjectsResult.exceptionOrNull()
+                                ?: ownerProjectsResult.exceptionOrNull()
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = error?.message,
+                                errorMessageResId =
+                                    if (error?.message == null) {
+                                        R.string.error_load_projects
+                                    } else {
+                                        null
+                                    },
+                            )
+                        }
+                        return@launch
                     }
-                    return@launch
-                }
 
-                val projects = (
-                        userProjectsResult.getOrDefault(emptyList()) +
+                    val projects =
+                        (
+                            userProjectsResult.getOrDefault(emptyList()) +
                                 ownerProjectsResult.getOrDefault(emptyList())
                         ).distinctBy { it.id }.filterNot { it.isDeleted }
 
-                val projectMap = projects.associateBy { it.id }
+                    val projectMap = projects.associateBy { it.id }
 
-                // Real-time подписка на задачи каждого проекта
-                val taskFlows = projects.map { project ->
-                    taskRepository.observeTasksByProjectId(project.id)
-                }
+                    // Real-time подписка на задачи каждого проекта
+                    val taskFlows =
+                        projects.map { project ->
+                            taskRepository.observeTasksByProjectId(project.id)
+                        }
 
-                if (taskFlows.isEmpty()) {
+                    if (taskFlows.isEmpty()) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                allTaskRows = emptyList(),
+                                availableFilters =
+                                    listOf(
+                                        TaskFilterItem("NONE", "", FilterType.NONE),
+                                        TaskFilterItem("MINE", "", FilterType.MINE),
+                                    ),
+                            )
+                        }
+                        applyFiltersAndGrouping()
+                        return@launch
+                    }
+
+                    combine(taskFlows) { resultsArray ->
+                        resultsArray.flatMap { it.getOrNull() ?: emptyList() }
+                    }.collect { allFetchedTasks ->
+                        val taskRows =
+                            allFetchedTasks.map { task ->
+                                TaskRowUi(
+                                    id = task.id,
+                                    projectId = task.projectId,
+                                    title = task.title,
+                                    projectName = projectMap[task.projectId]?.title ?: "Без проекта",
+                                    authorId = task.authorId,
+                                    assigneeId = task.assigneeId,
+                                    dueDateFormatted =
+                                        task.deadline.format(
+                                            DateTimeFormatter.ofPattern("dd.MM.yy"),
+                                        ),
+                                    status = task.status,
+                                    isDone = task.status == TaskStatus.DONE,
+                                    isOverdue =
+                                        task.deadline.isBefore(
+                                            LocalDateTime.now(ZoneOffset.UTC),
+                                        ) && task.status != TaskStatus.DONE,
+                                )
+                            }
+
+                        _uiState.update { state ->
+                            state.copy(
+                                isLoading = false,
+                                allTaskRows = taskRows,
+                                availableFilters =
+                                    listOf(
+                                        TaskFilterItem("NONE", "", FilterType.NONE),
+                                        TaskFilterItem("MINE", "", FilterType.MINE),
+                                    ) +
+                                        projects.map {
+                                            TaskFilterItem(it.id, it.title, FilterType.PROJECT)
+                                        },
+                            )
+                        }
+                        applyFiltersAndGrouping()
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            allTaskRows = emptyList(),
-                            availableFilters = listOf(
-                                TaskFilterItem("NONE", "", FilterType.NONE),
-                                TaskFilterItem("MINE", "", FilterType.MINE),
-                            ),
+                            errorMessage = e.message,
+                            errorMessageResId = R.string.error_system,
                         )
                     }
-                    applyFiltersAndGrouping()
-                    return@launch
-                }
-
-                combine(taskFlows) { resultsArray ->
-                    resultsArray.flatMap { it.getOrNull() ?: emptyList() }
-                }.collect { allFetchedTasks ->
-                    val taskRows = allFetchedTasks.map { task ->
-                        TaskRowUi(
-                            id = task.id,
-                            projectId = task.projectId,
-                            title = task.title,
-                            projectName = projectMap[task.projectId]?.title ?: "Без проекта",
-                            authorId = task.authorId,
-                            assigneeId = task.assigneeId,
-                            dueDateFormatted = task.deadline.format(
-                                DateTimeFormatter.ofPattern("dd.MM.yy"),
-                            ),
-                            status = task.status,
-                            isDone = task.status == TaskStatus.DONE,
-                            isOverdue = task.deadline.isBefore(
-                                LocalDateTime.now(ZoneOffset.UTC),
-                            ) && task.status != TaskStatus.DONE,
-                        )
-                    }
-
-                    _uiState.update { state ->
-                        state.copy(
-                            isLoading = false,
-                            allTaskRows = taskRows,
-                            availableFilters = listOf(
-                                TaskFilterItem("NONE", "", FilterType.NONE),
-                                TaskFilterItem("MINE", "", FilterType.MINE),
-                            ) + projects.map {
-                                TaskFilterItem(it.id, it.title, FilterType.PROJECT)
-                            },
-                        )
-                    }
-                    applyFiltersAndGrouping()
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Системная ошибка: ${e.message}",
-                    )
                 }
             }
-        }
     }
 
     fun onGroupingChange(grouping: TaskGrouping) {
@@ -224,22 +245,7 @@ class TasksScreenViewModel(
                 }
             }
 
-            // Формируем текст для кнопки фильтра
-            val buttonText = if (newFilters.isEmpty()) {
-                "Без фильтра"
-            } else {
-                val selectedNames = state.availableFilters
-                    .filter { it.id in newFilters }
-                    .joinToString(", ") {
-                        if (it.type == FilterType.MINE) "Мои задачи" else it.title
-                    }
-                selectedNames.ifBlank { "Выбрано: ${newFilters.size}" }
-            }
-
-            state.copy(
-                selectedFilters = newFilters,
-                filterButtonText = buttonText,
-            )
+            state.copy(selectedFilters = newFilters)
         }
         applyFiltersAndGrouping()
     }
@@ -267,9 +273,11 @@ class TasksScreenViewModel(
                 filtered = filtered.filter { it.authorId == uid || it.assigneeId == uid }
             }
 
-            val selectedProjectIds = state.selectedFilters.filter {
-                it != "MINE" && it != "NONE"
-            }.toSet()
+            val selectedProjectIds =
+                state.selectedFilters
+                    .filter {
+                        it != "MINE" && it != "NONE"
+                    }.toSet()
 
             if (selectedProjectIds.isNotEmpty()) {
                 filtered = filtered.filter { it.projectId in selectedProjectIds }
@@ -299,9 +307,9 @@ class TasksScreenViewModel(
         val done = tasks.filter { it.status == TaskStatus.DONE }
 
         return listOf(
-            TaskGroupUi("TODO", "К исполнению", todo.size, isExpanded = true, tasks = todo),
-            TaskGroupUi("IN_PROGRESS", "В процессе", inProgress.size, isExpanded = false, tasks = inProgress),
-            TaskGroupUi("DONE", "Сделано", done.size, isExpanded = false, tasks = done),
+            TaskGroupUi("TODO", R.string.tasks_group_planned, todo.size, isExpanded = true, tasks = todo),
+            TaskGroupUi("IN_PROGRESS", R.string.tasks_group_active, inProgress.size, isExpanded = false, tasks = inProgress),
+            TaskGroupUi("DONE", R.string.tasks_group_completed, done.size, isExpanded = false, tasks = done),
         )
     }
 
@@ -311,9 +319,9 @@ class TasksScreenViewModel(
         val done = tasks.filter { it.isDone }
 
         return listOf(
-            TaskGroupUi("OVERDUE", "Просрочено", overdue.size, isExpanded = true, tasks = overdue),
-            TaskGroupUi("UPCOMING", "Предстоящие", upcoming.size, isExpanded = false, tasks = upcoming),
-            TaskGroupUi("COMPLETED", "Завершенные", done.size, isExpanded = false, tasks = done),
+            TaskGroupUi("OVERDUE", R.string.tasks_group_overdue, overdue.size, isExpanded = true, tasks = overdue),
+            TaskGroupUi("UPCOMING", R.string.tasks_group_upcoming, upcoming.size, isExpanded = false, tasks = upcoming),
+            TaskGroupUi("COMPLETED", R.string.tasks_group_completed_deadline, done.size, isExpanded = false, tasks = done),
         )
     }
 
