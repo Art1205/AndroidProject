@@ -7,6 +7,10 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 import java.time.LocalDateTime
@@ -17,6 +21,7 @@ import java.time.ZoneOffset
  *
  * Коллекция `projects`; `ownerId` — строка, `updatedAt` — Timestamp,
  * `isDeleted` — Boolean. getByUserId() дополнительно читает `memberships`.
+ * observeProjectsByUserId() слушает изменения проектов и членства в реальном времени.
  * updateProject() меняет только переданные поля DTO и обновляет updatedAt.
  * addProject() принимает ProjectAddDto и сам генерирует ID.
  */
@@ -80,6 +85,106 @@ class FirebaseProjectRepositoryImpl(
             Result.success(projects.filterNot { it.isDeleted })
         } catch (e: Exception) {
             Result.failure(Exception(e.message ?: "Ошибка загрузки проектов пользователя"))
+        }
+
+    override fun observeProjectsByUserId(userId: String): Flow<Result<List<ProjectModel>>> =
+        callbackFlow {
+            val ownedProjects = linkedMapOf<String, ProjectModel>()
+            val memberProjects = linkedMapOf<String, ProjectModel>()
+            val memberProjectRegistrations = mutableMapOf<String, ListenerRegistration>()
+
+            fun emitProjects() {
+                val projects =
+                    (ownedProjects.values + memberProjects.values)
+                        .distinctBy { it.id }
+                        .filterNot { it.isDeleted }
+                        .sortedByDescending { it.updatedAt }
+                trySend(Result.success(projects))
+            }
+
+            fun syncMemberProjects(projectIds: Set<String>) {
+                (memberProjectRegistrations.keys - projectIds).forEach { projectId ->
+                    memberProjectRegistrations.remove(projectId)?.remove()
+                    memberProjects.remove(projectId)
+                }
+
+                projectIds.forEach { projectId ->
+                    if (projectId !in memberProjectRegistrations) {
+                        memberProjectRegistrations[projectId] =
+                            projectCollection.document(projectId).addSnapshotListener { snapshot, error ->
+                                if (error != null) {
+                                    trySend(
+                                        Result.failure(
+                                            Exception(error.message ?: "Ошибка загрузки проекта"),
+                                        ),
+                                    )
+                                    return@addSnapshotListener
+                                }
+
+                                val project = snapshot?.toProjectModel()
+                                if (project == null) {
+                                    memberProjects.remove(projectId)
+                                } else {
+                                    memberProjects[projectId] = project
+                                }
+                                emitProjects()
+                            }
+                    }
+                }
+            }
+
+            val membershipsRegistration =
+                membershipCollection
+                    .whereEqualTo("userId", userId)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            trySend(
+                                Result.failure(
+                                    Exception(error.message ?: "Ошибка загрузки членства"),
+                                ),
+                            )
+                            return@addSnapshotListener
+                        }
+
+                        val projectIds =
+                            snapshot?.documents
+                                ?.mapNotNull { it.getString("projectId") }
+                                ?.filter { it.isNotBlank() }
+                                ?.toSet()
+                                .orEmpty()
+
+                        syncMemberProjects(projectIds)
+                        emitProjects()
+                    }
+
+            val ownedProjectsRegistration =
+                projectCollection
+                    .whereEqualTo("ownerId", userId)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            trySend(
+                                Result.failure(
+                                    Exception(error.message ?: "Ошибка загрузки проектов владельца"),
+                                ),
+                            )
+                            return@addSnapshotListener
+                        }
+
+                        ownedProjects.clear()
+                        snapshot?.documents?.forEach { document ->
+                            document.toProjectModel()?.let { project ->
+                                ownedProjects[project.id] = project
+                            }
+                        }
+                        emitProjects()
+                    }
+
+            awaitClose {
+                membershipsRegistration.remove()
+                ownedProjectsRegistration.remove()
+                memberProjectRegistrations.values.forEach { it.remove() }
+                memberProjectRegistrations.clear()
+            }
         }
 
     override suspend fun addProject(project: ProjectAddDto): Result<ProjectModel> =

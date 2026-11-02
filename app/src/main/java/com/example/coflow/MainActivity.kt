@@ -99,12 +99,9 @@ class MainActivity : ComponentActivity() {
                             // Экран просмотра задачи
                             composable(
                                 route = Screen.TASK_DETAIL,
-                                arguments =
-                                    listOf(
-                                        navArgument("taskId") {
-                                            type = NavType.StringType
-                                        },
-                                    ),
+                                arguments = listOf(navArgument("taskId") {
+                                    type = NavType.StringType
+                                }),
                             ) {
                                 TaskDetailRoute(
                                     onNavigateBack = { navController.popBackStack() },
@@ -170,12 +167,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
 
-private fun NavHostController.navigateToTab(route: String) {
-    navigate(route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
+    private fun NavHostController.navigateToTab(route: String) {
+        navigate(route) {
+            popUpTo(graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
     }
 }

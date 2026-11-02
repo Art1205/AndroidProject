@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,7 +26,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.coflow.R
 import com.example.coflow.ui.components.*
 import com.example.coflow.ui.theme.*
@@ -107,7 +111,12 @@ fun TaskDetailScreen(
 
                         // Описание
                         Column {
-                            Text("Описание", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = CoFlowColors.TextPrimary)
+                            Text(
+                                stringResource(R.string.task_description_label),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = CoFlowColors.TextPrimary,
+                            )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = state.description.ifBlank { stringResource(com.example.coflow.R.string.description_placeholder) },
@@ -118,7 +127,12 @@ fun TaskDetailScreen(
 
                         // Автор
                         Column {
-                            Text("Автор задачи", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = CoFlowColors.TextPrimary)
+                            Text(
+                                stringResource(R.string.task_author_label),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = CoFlowColors.TextPrimary,
+                            )
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = state.author.ifBlank { stringResource(R.string.author_placeholder) },
@@ -233,21 +247,29 @@ private fun TagChip(text: String) {
     }
 }
 
+@Composable
 private fun getStatusText(status: TaskStatusUi): String =
     when (status) {
-        TaskStatusUi.TODO -> "К исполнению"
-        TaskStatusUi.IN_PROGRESS -> "В процессе"
-        TaskStatusUi.DONE -> "Сделано"
+        TaskStatusUi.TODO -> stringResource(R.string.task_status_todo)
+        TaskStatusUi.IN_PROGRESS -> stringResource(R.string.task_status_in_progress)
+        TaskStatusUi.DONE -> stringResource(R.string.task_status_done)
     }
 
 @Composable
 fun TaskDetailRoute(
     onNavigateBack: () -> Unit,
-    onNavigateToEdit: (Int) -> Unit = {}, // Колбэк для навигации на экран редактирования
-    viewModel: TaskDetailScreenViewModel = viewModel(), // SavedStateHandle подставится автоматически!
+    onNavigateToEdit: (String) -> Unit = {}, // <-- ИЗМЕНЕНО: теперь передаем String (Firestore ID)
+    viewModel: TaskDetailScreenViewModel =
+        viewModel(
+            factory =
+                viewModelFactory {
+                    initializer {
+                        TaskDetailScreenViewModel(createSavedStateHandle())
+                    }
+                },
+        ),
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     // Слушаем события от ViewModel (например, команду на навигацию)
     LaunchedEffect(Unit) {
@@ -256,7 +278,7 @@ fun TaskDetailRoute(
                 is TaskDetailScreenViewModel.UiEvent.NavigateBack -> {
                     // Навигацию "Назад" лучше делать через navController.popBackStack() в MainActivity,
                     // но если Route имеет доступ к нему, можно вызвать здесь.
-                    // Пока оставим заглушку или передадим колбэк.
+                    onNavigateBack()
                 }
 
                 is TaskDetailScreenViewModel.UiEvent.NavigateToEdit -> {
@@ -266,14 +288,52 @@ fun TaskDetailRoute(
         }
     }
 
-    // Показываем экран только когда данные загружены
-    if (state != null) {
-        TaskDetailScreen(
-            state = state!!,
-            onBackClick = onNavigateBack,
-            onEditClick = viewModel::onEditClick,
-            onBottomActionClick = viewModel::onBottomActionClick,
-        )
+    // Правильная обработка состояний загрузки и ошибки
+    when {
+        state.isLoading -> {
+            Box(
+                modifier = Modifier.fillMaxSize().background(coFlowTasksBackgroundBrush()),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = CoFlowColors.Blue)
+            }
+        }
+
+        state.errorMessage != null || state.errorMessageResId != null -> {
+            val errorResId = state.errorMessageResId
+            val errorMsg = state.errorMessage
+
+            val message =
+                when {
+                    errorResId != null && errorMsg != null -> {
+                        stringResource(errorResId, errorMsg)
+                    }
+
+                    errorResId != null -> {
+                        stringResource(errorResId)
+                    }
+
+                    else -> {
+                        stringResource(R.string.error_prefix, errorMsg.orEmpty())
+                    }
+                }
+
+            Box(
+                modifier = Modifier.fillMaxSize().background(coFlowTasksBackgroundBrush()),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = message, color = CoFlowColors.Error)
+            }
+        }
+
+        else -> {
+            TaskDetailScreen(
+                state = state,
+                onBackClick = viewModel::onBackClick,
+                onEditClick = viewModel::onEditClick,
+                onBottomActionClick = viewModel::onBottomActionClick,
+            )
+        }
     }
 }
 
@@ -284,7 +344,7 @@ fun TaskDetailScreen_InProgressOverdue_Preview() {
         TaskDetailScreen(
             state =
                 TaskDetailUiState(
-                    id = 4,
+                    id = "4",
                     title = "Разработать новый онбординг для пользователей",
                     status = TaskStatusUi.IN_PROGRESS,
                     projectName = "Мобильное приложение",
@@ -296,6 +356,7 @@ fun TaskDetailScreen_InProgressOverdue_Preview() {
                     canEdit = false,
                     showBottomAction = true,
                     bottomActionText = "Выполнить",
+                    isLoading = false, // Важно для превью!
                 ),
             onBackClick = {},
             onEditClick = {},
@@ -311,7 +372,7 @@ fun TaskDetailScreen_Todo_Preview() {
         TaskDetailScreen(
             state =
                 TaskDetailUiState(
-                    id = 1,
+                    id = "1",
                     title = "Обновить иконки в навигации",
                     status = TaskStatusUi.TODO,
                     projectName = "Дизайн-система",
@@ -323,6 +384,7 @@ fun TaskDetailScreen_Todo_Preview() {
                     canEdit = true, // Покажет карандаш
                     showBottomAction = true,
                     bottomActionText = "Взять задачу",
+                    isLoading = false,
                 ),
             onBackClick = {},
             onEditClick = {},
@@ -338,7 +400,7 @@ private fun TaskDetailScreen_Done_Preview() {
         TaskDetailScreen(
             state =
                 TaskDetailUiState(
-                    id = 5,
+                    id = "5",
                     title = "Провести ревью кода модуля авторизации",
                     status = TaskStatusUi.DONE,
                     projectName = "Бэкенд",
@@ -350,6 +412,7 @@ private fun TaskDetailScreen_Done_Preview() {
                     canEdit = false, // Карандаша нет
                     showBottomAction = false, // Кнопки внизу нет
                     bottomActionText = "",
+                    isLoading = false,
                 ),
             onBackClick = {},
             onEditClick = {},
