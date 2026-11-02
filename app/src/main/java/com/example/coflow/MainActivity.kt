@@ -9,13 +9,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.coflow.repositories.FirebaseAuthRepositoryImpl
 import com.example.coflow.ui.auth.AuthRoute
 import com.example.coflow.ui.projects.ProjectsRoute
 import com.example.coflow.ui.tasks.ChooseAssigneeRoute
@@ -25,10 +27,8 @@ import com.example.coflow.ui.tasks.CreateTaskRoute
 import com.example.coflow.ui.tasks.CreateTaskViewModel
 import com.example.coflow.ui.tasks.EditTaskRoute
 import com.example.coflow.ui.tasks.TaskDetailRoute
-import com.example.coflow.ui.tasks.TaskDetailScreen
-import com.example.coflow.ui.tasks.TaskDetailUiState
-import com.example.coflow.ui.tasks.TaskStatusUi
 import com.example.coflow.ui.tasks.TasksRoute
+import com.example.coflow.ui.tasks.TasksScreenViewModel
 import com.example.coflow.ui.theme.CoFlowTheme
 
 object Screen {
@@ -51,20 +51,31 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CoFlowTheme {
-                var isAuthenticated by remember { mutableStateOf(true) }
+                val authRepository = remember { FirebaseAuthRepositoryImpl() }
+
+                // Для того, чтобы не требовалась авторизация при каждом запуске
+                var isAuthenticated by remember {
+                    mutableStateOf(
+                        runCatching { authRepository.getCurrentUserUid() != null }
+                            .getOrDefault(false),
+                    )
+                }
+
+                // var isAuthenticated by remember { mutableStateOf(false) } // Для тестирования окна авторизации
 
                 if (isAuthenticated) {
                     val navController = rememberNavController()
                     val createTaskViewModel: CreateTaskViewModel = viewModel()
-                    val defaultFilterText = stringResource(R.string.filter_none)
+                    val tasksViewModel: TasksScreenViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = Screen.TASKS) {
                         // Экран Мои задачи
                         composable(Screen.TASKS) {
                             TasksRoute(
+                                viewModel = tasksViewModel,
                                 onNavigateToCreateTask = { navController.navigate(Screen.CREATE_TASK) },
                                 onNavigateToTaskDetail = { taskId -> navController.navigate("task_detail/$taskId") },
-                                onNavigateToProjects = { navController.navigate(Screen.PROJECTS) },
+                                onNavigateToProjects = { navController.navigateToTab(Screen.PROJECTS) },
                                 onNavigateToProfile = { },
                             )
                         }
@@ -72,15 +83,8 @@ class MainActivity : ComponentActivity() {
                         // Экран Проекты
                         composable(Screen.PROJECTS) {
                             ProjectsRoute(
-                                onNavigateToCreateProject = {
-                                    android.widget.Toast
-                                        .makeText(
-                                            this@MainActivity,
-                                            "Добавление проекта ляля",
-                                            android.widget.Toast.LENGTH_SHORT,
-                                        ).show()
-                                },
-                                onNavigateToTasks = { navController.popBackStack() },
+                                onNavigateToCreateProject = {},
+                                onNavigateToTasks = { navController.navigateToTab(Screen.TASKS) },
                             )
                         }
 
@@ -91,27 +95,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             TaskDetailRoute(
                                 onNavigateBack = { navController.popBackStack() },
-                                onNavigateToEdit = { taskId -> navController.navigate("edit_task/$taskId") },
-                            )
-                        }
-                        // Экран редактирования задачи
-                        composable(
-                            route = Screen.EDIT_TASK,
-                            arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
-                        ) {
-                            EditTaskRoute(
-                                onNavigateBack = { navController.popBackStack() },
-                                onTaskSaved = { updatedTask ->
-                                    // TODO: Здесь вызов Repository для сохранения: tasksRepository.updateTask(updatedTask)
-                                    navController.popBackStack()
-                                },
-                                onTaskDeleted = { taskId ->
-                                    // TODO: Здесь вызов Repository для удаления: tasksRepository.deleteTask(taskId)
-                                    navController.popBackStack()
-                                },
-                                onNavigateToAssignees = { navController.navigate(Screen.CHOOSE_ASSIGNEE) },
-                                onNavigateToProject = { navController.navigate(Screen.CHOOSE_PROJECT) },
-                                onNavigateToDate = { navController.navigate(Screen.CHOOSE_DATE) },
+                                onNavigateToEdit = { },
                             )
                         }
 
@@ -119,8 +103,8 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.CREATE_TASK) {
                             CreateTaskRoute(
                                 onBackClick = { navController.popBackStack() },
-                                onTaskCreated = { formData ->
-                                    // TODO: Сохранение задачи через TasksRepository
+                                onTaskCreated = {
+                                    tasksViewModel.refresh()
                                     navController.popBackStack()
                                 },
                                 onNavigateToAssignees = { navController.navigate(Screen.CHOOSE_ASSIGNEE) },
@@ -171,5 +155,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+private fun NavHostController.navigateToTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }

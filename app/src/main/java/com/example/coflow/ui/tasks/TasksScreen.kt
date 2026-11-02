@@ -24,8 +24,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,20 +64,36 @@ import com.example.coflow.ui.theme.CoFlowSpacing
 import com.example.coflow.ui.theme.CoFlowTheme
 import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
 import java.time.format.DateTimeFormatter
+import com.example.coflow.models.TaskStatus
+import com.example.coflow.ui.components.*
+import com.example.coflow.ui.theme.*
 
 @Composable
 fun TasksScreen(
     state: TasksUiState,
     onNavigateToCreateTask: () -> Unit,
-    onNavigateToTaskDetail: (Int) -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit,
     onGroupingChange: (TaskGrouping) -> Unit,
     onFilterToggle: (String) -> Unit,
     onToggleGroup: (String) -> Unit,
     onNavigateToProjects: () -> Unit,
     onNavigateToProfile: () -> Unit,
+    onClearError: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
+    if (state.errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = onClearError,
+            title = { Text(stringResource(R.string.error_title), color = CoFlowColors.Error) },
+            text = { Text(state.errorMessage) },
+            confirmButton = {
+                TextButton(onClick = onClearError) {
+                    Text(stringResource(R.string.ok_button), color = CoFlowColors.Blue)
+                }
+            },
+        )
+    }
     Box(
         modifier =
             Modifier
@@ -101,23 +120,32 @@ fun TasksScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            Column(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(bottom = 8.dp)
-                        .clipToBounds()
-                        .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                state.groups.forEach { group ->
-                    TaskGroupCard(
-                        group = group,
-                        onToggle = { onToggleGroup(group.id) },
-                        onTaskClick = { task -> onNavigateToTaskDetail(task.id) },
-                    )
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = CoFlowColors.Blue)
                 }
-                Spacer(Modifier.height(18.dp))
+            } else {
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(bottom = 8.dp)
+                            .clipToBounds()
+                            .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    state.groups.forEach { group ->
+                        TaskGroupCard(
+                            group = group,
+                            onToggle = { onToggleGroup(group.id) },
+                            onTaskClick = { task -> onNavigateToTaskDetail(task.id) },
+                        )
+                    }
+                    Spacer(Modifier.height(18.dp))
+                }
             }
 
             AnimatedVisibility(visible = state.isBottomBarVisible) {
@@ -148,6 +176,7 @@ fun TasksScreen(
                             filterButtonText = state.filterButtonText,
                             onFilterToggle = onFilterToggle,
                             selectedFilters = state.selectedFilters,
+                            availableFilters = state.availableFilters,
                         )
                         Spacer(Modifier.width(16.dp))
 
@@ -230,7 +259,11 @@ private fun TaskGroupCard(
         if (group.isExpanded) {
             if (group.tasks.isEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Text(text = "Нет задач", fontSize = 11.sp, color = CoFlowColors.TextSecondary)
+                Text(
+                    text = stringResource(R.string.no_tasks_placeholder),
+                    fontSize = 11.sp,
+                    color = CoFlowColors.TextSecondary,
+                )
             } else {
                 Spacer(Modifier.height(3.dp))
                 group.tasks.forEachIndexed { index, task ->
@@ -255,7 +288,6 @@ private fun TaskRow(
     task: TaskRowUi,
     onClick: () -> Unit,
 ) {
-    val formatter = remember { DateTimeFormatter.ofPattern("dd.MM.yy") }
     Column(
         modifier =
             Modifier
@@ -308,6 +340,7 @@ private fun SortFilterPanel(
     selectedFilters: Set<String>,
     filterButtonText: String,
     onFilterToggle: (String) -> Unit,
+    availableFilters: List<String>,
 ) {
     Row(
         modifier = modifier,
@@ -434,13 +467,7 @@ private fun SortFilterPanel(
                 shadowElevation = 0.dp,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.82f)),
             ) {
-                listOf(
-                    stringResource(R.string.filter_none),
-                    stringResource(R.string.filter_mine),
-                    "Проект 1",
-                    "Проект 2",
-                    "Проект 3",
-                ).forEach { option ->
+                availableFilters.forEach { option ->
                     GlassFilterOption(
                         title = option,
                         selected = selectedFilters.contains(option),
@@ -583,7 +610,7 @@ private fun GlassFilterOption(
 fun TasksRoute(
     viewModel: TasksScreenViewModel = viewModel(),
     onNavigateToCreateTask: () -> Unit,
-    onNavigateToTaskDetail: (Int) -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit,
     onNavigateToProjects: () -> Unit,
     onNavigateToProfile: () -> Unit,
 ) {
@@ -599,6 +626,7 @@ fun TasksRoute(
         onToggleGroup = viewModel::onToggleGroup,
         onNavigateToProjects = onNavigateToProjects,
         onNavigateToProfile = onNavigateToProfile,
+        onClearError = viewModel::clearError,
     )
 }
 
@@ -621,18 +649,26 @@ fun TasksScreen_Default_Preview() {
                                 tasks =
                                     listOf(
                                         TaskRowUi(
-                                            1,
+                                            "1",
                                             "Обновить иконки навигации",
+                                            "project_1",
                                             "Дизайн-система",
+                                            "user_1",
+                                            "user_1",
                                             "30.10.26",
+                                            TaskStatus.TODO,
                                             isDone = false,
                                             isOverdue = false,
                                         ),
                                         TaskRowUi(
-                                            2,
+                                            "2",
                                             "Согласовать ТЗ с заказчиком",
+                                            "project_1",
                                             "Сайт",
+                                            "user_2",
+                                            "user_1",
                                             "01.11.26",
+                                            TaskStatus.TODO,
                                             isDone = false,
                                             isOverdue = false,
                                         ),
@@ -646,18 +682,26 @@ fun TasksScreen_Default_Preview() {
                                 tasks =
                                     listOf(
                                         TaskRowUi(
-                                            3,
+                                            "3",
                                             "Разработать онбординг",
+                                            "project_1",
                                             "Мобильное приложение",
+                                            "user_1",
+                                            "user_3",
                                             "24.10.26",
+                                            TaskStatus.IN_PROGRESS,
                                             isDone = false,
                                             isOverdue = true,
                                         ), // Просрочено!
                                         TaskRowUi(
-                                            4,
+                                            "4",
                                             "Настроить CI/CD",
+                                            "project_1",
                                             "Бэкенд",
+                                            "user_3",
+                                            "user_2",
                                             "28.10.26",
+                                            TaskStatus.IN_PROGRESS,
                                             isDone = false,
                                             isOverdue = false,
                                         ),
@@ -690,6 +734,7 @@ fun TasksScreen_Default_Preview() {
             onToggleGroup = {},
             onNavigateToProjects = {},
             onNavigateToProfile = {},
+            onClearError = {},
         )
     }
 }

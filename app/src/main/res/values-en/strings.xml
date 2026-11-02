@@ -125,6 +125,12 @@
         </plurals>
 
     <!-- Описание задачи-->
+    <string name="edit_task_saved">Task saved</string>
+    <string name="edit_task_invalid_date">Check the date</string>
+    <string name="edit_task_delete_dialog_title">Delete task</string>
+    <string name="edit_task_delete_dialog_message">Are you sure you want to delete this task?</string>
+    <string name="edit_task_delete_confirm">I am sure</string>
+    <string name="edit_task_delete_cancel">Cancel</string>
     <string name="description_header">Description</string>
     <string name="description_placeholder">No description provided</string>
 
@@ -140,13 +146,8 @@
 
     <string name="deadline_header">Deadline</string>
 
-        <!-- Сообщения редактирования задачи -->
-        <string name="edit_task_saved">Task saved</string>
-        <string name="edit_task_invalid_date">Check the date</string>
-
-        <!-- Диалог подтверждения удаления -->
-        <string name="edit_task_delete_dialog_title">Delete task</string>
-        <string name="edit_task_delete_dialog_message">Are you sure you want to delete this task?</string>
-        <string name="edit_task_delete_confirm">Delete anyway</string>
-        <string name="edit_task_delete_cancel">Cancel</string>
+    <!-- Общие сообщения -->
+    <string name="error_title">Error</string>
+    <string name="ok_button">OK</string>
+    <string name="no_tasks_placeholder">No tasks</string>
 </resources>

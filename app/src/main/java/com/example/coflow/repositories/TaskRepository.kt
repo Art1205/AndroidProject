@@ -3,6 +3,7 @@ package com.example.coflow.repositories
 import com.example.coflow.models.TaskModel
 import com.example.coflow.repositories.dto.TaskAddDto
 import com.example.coflow.repositories.dto.TaskUpdateDto
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Репозиторий задач (коллекция `tasks`).
@@ -34,6 +35,15 @@ interface TaskRepository {
 
     /** Возвращает задачи проекта по строковому `projectId`; пустой список — норма. */
     suspend fun getByProjectId(id: String): Result<List<TaskModel>>
+
+    /**
+     * Наблюдает за задачами проекта в реальном времени.
+     *
+     * Это холодный [Flow]: при подписке сразу приходит текущий список,
+     * затем — изменения из Firestore. Ошибка приходит как [Result.failure].
+     * Подписка снимается при отмене сбора.
+     */
+    fun observeTasksByProjectId(id: String): Flow<Result<List<TaskModel>>>
 
     /**
      * Создаёт задачу из [TaskAddDto].
