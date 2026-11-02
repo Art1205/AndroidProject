@@ -24,6 +24,14 @@ import java.time.format.DateTimeFormatter
 
 enum class TaskGrouping { STATUS, DEADLINE }
 
+enum class FilterType { NONE, MINE, PROJECT }
+
+data class TaskFilterItem(
+    val id: String,
+    val title: String,
+    val type: FilterType,
+)
+
 data class TaskRowUi(
     val id: String,
     val title: String,
@@ -51,8 +59,7 @@ data class TasksUiState(
     val groups: List<TaskGroupUi>,
     val currentGrouping: TaskGrouping,
     val selectedFilters: Set<String>,
-    val filterButtonText: String,
-    val availableFilters: List<String>,
+    val availableFilters: List<TaskFilterItem>,
     val isBottomBarVisible: Boolean,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
@@ -72,7 +79,6 @@ class TasksScreenViewModel(
                 groups = emptyList(),
                 currentGrouping = TaskGrouping.STATUS,
                 selectedFilters = emptySet(),
-                filterButtonText = "Без фильтра",
                 availableFilters = emptyList(),
                 isBottomBarVisible = true,
                 isLoading = true, // Сразу показываем крутилку
@@ -89,65 +95,91 @@ class TasksScreenViewModel(
     private fun loadTasks() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            currentUid = authRepository.getCurrentUserUid()
+            try {
+                currentUid = authRepository.getCurrentUserUid()
 
-            if (currentUid == null) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = "Пользователь не авторизован") }
-                return@launch
-            }
+                if (currentUid == null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Пользователь не авторизован",
+                        )
+                    }
+                    return@launch
+                }
 
-            // Загружаем проекты пользователя
-            projectRepository.getByUserId(currentUid!!).fold(
-                onSuccess = { projects ->
-                    val allFetchedTasks =
-                        kotlinx.coroutines.coroutineScope {
-                            projects
-                                .map { project ->
-                                    async {
-                                        taskRepository.getByProjectId(project.id).getOrNull() ?: emptyList()
-                                    }
-                                }.awaitAll()
-                                .flatten()
-                        }
-                    // Создаем мапу ID -> Название, чтобы быстро подставлять имя проекта в UI
-                    val projectMap = projects.associateBy { it.id }
+                // Загружаем проекты пользователя
+                projectRepository.getByUserId(currentUid!!).fold(
+                    onSuccess = { projects ->
+                        val allFetchedTasks =
+                            kotlinx.coroutines.coroutineScope {
+                                projects
+                                    .map { project ->
+                                        async {
+                                            taskRepository.getByProjectId(project.id).getOrNull()
+                                                ?: emptyList()
+                                        }
+                                    }.awaitAll()
+                                    .flatten()
+                            }
+                        // Создаем мапу ID -> Название, чтобы быстро подставлять имя проекта в UI
+                        val projectMap = projects.associateBy { it.id }
 
-                    // Превращаем TaskModel в TaskRowUi
-                    val taskRows =
-                        allFetchedTasks.map { task ->
-                            TaskRowUi(
-                                id = task.id,
-                                projectId = task.projectId,
-                                title = task.title,
-                                projectName = projectMap[task.projectId]?.title ?: "Без проекта",
-                                authorId = task.authorId,
-                                assigneeId = task.assigneeId,
-                                dueDateFormatted = task.deadline.format(DateTimeFormatter.ofPattern("dd.MM.yy")),
-                                status = task.status,
-                                isDone = task.status == TaskStatus.DONE,
-                                // Firestore хранит даты в UTC, поэтому и текущее время берём в UTC.
-                                // Иначе на устройствах с другим часовым поясом задача может
-                                // считаться просроченной раньше или позже реального дедлайна.
-                                isOverdue = task.deadline.isBefore(LocalDateTime.now(ZoneOffset.UTC)) && task.status != TaskStatus.DONE,
+                        // Превращаем TaskModel в TaskRowUi
+                        val taskRows =
+                            allFetchedTasks.map { task ->
+                                TaskRowUi(
+                                    id = task.id,
+                                    projectId = task.projectId,
+                                    title = task.title,
+                                    projectName =
+                                        projectMap[task.projectId]?.title
+                                            ?: "Без проекта",
+                                    authorId = task.authorId,
+                                    assigneeId = task.assigneeId,
+                                    dueDateFormatted =
+                                        task.deadline.format(
+                                            DateTimeFormatter.ofPattern(
+                                                "dd.MM.yy",
+                                            ),
+                                        ),
+                                    status = task.status,
+                                    isDone = task.status == TaskStatus.DONE,
+                                    // Firestore хранит даты в UTC, поэтому и текущее время берём в UTC.
+                                    // Иначе на устройствах с другим часовым поясом задача может
+                                    // считаться просроченной раньше или позже реального дедлайна.
+                                    isOverdue = task.deadline.isBefore(LocalDateTime.now(ZoneOffset.UTC)) && task.status != TaskStatus.DONE,
+                                )
+                            }
+
+                        // Обновляем стейт: убираем загрузку, кидаем задачи и формируем фильтры
+                        _uiState.update { state ->
+                            state.copy(
+                                isLoading = false,
+                                allTaskRows = taskRows,
+                                availableFilters =
+                                    listOf(
+                                        TaskFilterItem("NONE", "", FilterType.NONE),
+                                        TaskFilterItem("MINE", "", FilterType.MINE),
+                                    ) + projects.map { TaskFilterItem(it.id, it.title, FilterType.PROJECT) },
                             )
                         }
 
-                    // Обновляем стейт: убираем загрузку, кидаем задачи и формируем фильтры
-                    _uiState.update { state ->
-                        state.copy(
-                            isLoading = false,
-                            allTaskRows = taskRows,
-                            availableFilters = listOf("Без фильтра", "Мои задачи") + projects.map { "Проект: ${it.title}" },
-                        )
-                    }
-
-                    // Сразу применяем фильтры и группировку
-                    applyFiltersAndGrouping()
-                },
-                onFailure = { error ->
-                    _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: "Ошибка загрузки проектов") }
-                },
-            )
+                        // Сразу применяем фильтры и группировку
+                        applyFiltersAndGrouping()
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = error.message ?: "Ошибка загрузки проектов",
+                            )
+                        }
+                    },
+                )
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Системная ошибка: ${e.message}") }
+            }
         }
     }
 
@@ -158,26 +190,19 @@ class TasksScreenViewModel(
         applyFiltersAndGrouping()
     }
 
-    fun onFilterToggle(filter: String) {
+    fun onFilterToggle(filterId: String) {
         _uiState.update { state ->
             val newFilters = state.selectedFilters.toMutableSet()
-
-            if (filter == "Без фильтра") {
+            if (filterId == "NONE") {
                 newFilters.clear()
             } else {
-                if (newFilters.contains(filter)) {
-                    newFilters.remove(filter)
+                if (newFilters.contains(filterId)) {
+                    newFilters.remove(filterId)
                 } else {
-                    newFilters.add(filter)
+                    newFilters.add(filterId)
                 }
             }
-
-            val buttonText = if (newFilters.isEmpty()) "Без фильтра" else newFilters.joinToString(", ")
-
-            state.copy(
-                selectedFilters = newFilters,
-                filterButtonText = buttonText,
-            )
+            state.copy(selectedFilters = newFilters)
         }
         applyFiltersAndGrouping()
     }
@@ -201,25 +226,17 @@ class TasksScreenViewModel(
             var filtered = state.allTaskRows
             val uid = currentUid
 
-            // «Мои задачи»
-            if (state.selectedFilters.contains("Мои задачи") && uid != null) {
+            // «Мои задачи» (ID "MINE")
+            if (state.selectedFilters.contains("MINE") && uid != null) {
                 filtered = filtered.filter { it.authorId == uid || it.assigneeId == uid }
             }
 
-            // Проекты
-            val selectedProjectNames =
-                state.selectedFilters
-                    .filter { it.startsWith("Проект: ") }
-                    .map { it.removePrefix("Проект: ") }
-
-            if (selectedProjectNames.isNotEmpty()) {
-                val selectedProjectIds =
-                    state.allTaskRows
-                        .filter { it.projectName in selectedProjectNames }
-                        .map { it.projectId }
-                        .toSet()
+            // Проекты (все ID в selectedFilters, кроме "MINE", — это ID проектов)
+            val selectedProjectIds = state.selectedFilters.filter { it != "MINE" }
+            if (selectedProjectIds.isNotEmpty()) {
                 filtered = filtered.filter { it.projectId in selectedProjectIds }
             }
+
             val newGroups =
                 when (state.currentGrouping) {
                     TaskGrouping.STATUS -> groupTasksByStatus(filtered)
