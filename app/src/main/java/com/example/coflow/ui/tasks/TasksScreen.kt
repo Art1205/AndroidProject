@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.coflow.R
+import com.example.coflow.models.TaskStatus
 import com.example.coflow.ui.components.CoFlowBottomNavigationBar
 import com.example.coflow.ui.components.CoFlowFabButton
 import com.example.coflow.ui.components.CoFlowGlassCard
@@ -63,10 +64,6 @@ import com.example.coflow.ui.theme.CoFlowGlassStyles
 import com.example.coflow.ui.theme.CoFlowSpacing
 import com.example.coflow.ui.theme.CoFlowTheme
 import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
-import java.time.format.DateTimeFormatter
-import com.example.coflow.models.TaskStatus
-import com.example.coflow.ui.components.*
-import com.example.coflow.ui.theme.*
 
 @Composable
 fun TasksScreen(
@@ -468,7 +465,7 @@ private fun SortFilterPanel(
                     Color(
                         0xFFF4F8FF,
                     ).copy(
-                        alpha = 0.62f,
+                        alpha = 1f,
                     ),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
