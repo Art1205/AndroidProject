@@ -66,7 +66,6 @@ import com.example.coflow.ui.theme.CoFlowGlassStyles
 import com.example.coflow.ui.theme.CoFlowSpacing
 import com.example.coflow.ui.theme.CoFlowTheme
 import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun TasksScreen(
@@ -493,7 +492,7 @@ private fun SortFilterPanel(
                     Color(
                         0xFFF4F8FF,
                     ).copy(
-                        alpha = 0.62f,
+                        alpha = 1f,
                     ),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
