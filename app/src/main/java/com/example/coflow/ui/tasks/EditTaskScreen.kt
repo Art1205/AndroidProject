@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.coflow.R
 import com.example.coflow.ui.components.CoFlowEditDeleteButton
 import com.example.coflow.ui.components.CoFlowEditSaveButton
@@ -40,6 +42,7 @@ import com.example.coflow.ui.components.CoFlowScreenHeader
 import com.example.coflow.ui.theme.CoFlowSpacing
 import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
 import kotlin.collections.joinToString
+import androidx.lifecycle.createSavedStateHandle
 
 @Composable
 fun EditTaskScreen(
@@ -185,11 +188,18 @@ fun EditTaskScreen(
 fun EditTaskRoute(
     onNavigateBack: () -> Unit,
     onTaskSaved: (Task) -> Unit,
-    onTaskDeleted: (Int) -> Unit,
+    onTaskDeleted: (String) -> Unit,
     onNavigateToAssignees: () -> Unit,
     onNavigateToProject: () -> Unit,
     onNavigateToDate: () -> Unit,
-    viewModel: EditTaskViewModel = viewModel(),
+    //viewModel: EditTaskViewModel = viewModel(),
+    viewModel: EditTaskViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer {
+                EditTaskViewModel(createSavedStateHandle())
+            }
+        },
+    ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deleteConfirmText = stringResource(R.string.edit_task_delete_confirm)
@@ -241,39 +251,39 @@ fun EditTaskRoute(
     }
 }
 
-// Заглушка для получения задачи по ID
-private fun getMockTask(taskId: Int): Task =
-    when (taskId) {
-        1 -> {
-            Task(
-                id = taskId,
-                title = "Обновить иконки в навигации",
-                description = "",
-                assignees = emptyList(),
-                projectName = "Дизайн-система",
-                dueDate = "30.10.26",
-            )
-        }
-
-        3 -> {
-            Task(
-                id = taskId,
-                title = "Разработать новый онбординг для пользователей",
-                description = "Нужно сделать 3 экрана с анимацией и кнопкой пропуска.",
-                assignees = listOf("Мария Иванова", "Ты"),
-                projectName = "Мобильное приложение",
-                dueDate = "24.10.26",
-            )
-        }
-
-        else -> {
-            Task(
-                id = taskId,
-                title = "Провести ревью кода модуля авторизации",
-                description = "Все замечания исправлены, код утвержден.",
-                assignees = listOf("Ты"),
-                projectName = "Бэкенд",
-                dueDate = "20.10.26",
-            )
-        }
-    }
+//// Заглушка для получения задачи по ID
+//private fun getMockTask(taskId: Int): Task =
+//    when (taskId) {
+//        1 -> {
+//            Task(
+//                id = taskId,
+//                title = "Обновить иконки в навигации",
+//                description = "",
+//                assignees = emptyList(),
+//                projectName = "Дизайн-система",
+//                dueDate = "30.10.26",
+//            )
+//        }
+//
+//        3 -> {
+//            Task(
+//                id = taskId,
+//                title = "Разработать новый онбординг для пользователей",
+//                description = "Нужно сделать 3 экрана с анимацией и кнопкой пропуска.",
+//                assignees = listOf("Мария Иванова", "Ты"),
+//                projectName = "Мобильное приложение",
+//                dueDate = "24.10.26",
+//            )
+//        }
+//
+//        else -> {
+//            Task(
+//                id = taskId,
+//                title = "Провести ревью кода модуля авторизации",
+//                description = "Все замечания исправлены, код утвержден.",
+//                assignees = listOf("Ты"),
+//                projectName = "Бэкенд",
+//                dueDate = "20.10.26",
+//            )
+//        }
+//    }
