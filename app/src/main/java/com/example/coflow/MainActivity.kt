@@ -40,7 +40,6 @@ object Screen {
     const val CHOOSE_ASSIGNEE = "choose_assignee"
     const val CHOOSE_PROJECT = "choose_project"
     const val CHOOSE_DATE = "choose_date"
-
     const val TASK_DETAIL = "task_detail/{taskId}"
     const val PROJECTS = "projects"
     const val EDIT_TASK = "edit_task/{taskId}"
@@ -54,116 +53,19 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CoFlowTheme {
-                val authRepository = remember { FirebaseAuthRepositoryImpl() }
+                CompositionLocalProvider(
+                    LocalIndication provides CoFlowIndication,
+                ) {
+                    val authRepository = remember { FirebaseAuthRepositoryImpl() }
 
-                // Для того, чтобы не требовалась авторизация при каждом запуске
-                var isAuthenticated by remember {
-                    mutableStateOf(
-                        runCatching { authRepository.getCurrentUserUid() != null }
-                            .getOrDefault(true),
-                    )
-                }
-
-                // var isAuthenticated by remember { mutableStateOf(false) } // Для тестирования окна авторизации
-
-                if (isAuthenticated) {
-                    val navController = rememberNavController()
-                    val createTaskViewModel: CreateTaskViewModel = viewModel()
-                    val tasksViewModel: TasksScreenViewModel = viewModel()
-
-                    NavHost(navController = navController, startDestination = Screen.TASKS) {
-                        // Экран Мои задачи
-                        composable(Screen.TASKS) {
-                            TasksRoute(
-                                viewModel = tasksViewModel,
-                                onNavigateToCreateTask = { navController.navigate(Screen.CREATE_TASK) },
-                                onNavigateToTaskDetail = { taskId -> navController.navigate("task_detail/$taskId") },
-                                onNavigateToProjects = { navController.navigateToTab(Screen.PROJECTS) },
-                                onNavigateToProfile = { },
-                            )
-                        }
-
-                        // Экран Проекты
-                        composable(Screen.PROJECTS) {
-                            ProjectsRoute(
-                                onNavigateToCreateProject = {},
-                                onNavigateToTasks = { navController.navigateToTab(Screen.TASKS) },
-                            )
-                        }
-
-                        // Экран просмотра задачи
-                        composable(
-                            route = Screen.TASK_DETAIL,
-                            arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
-                        ) {
-                            TaskDetailRoute(
-                                onNavigateBack = { navController.popBackStack() },
-                                onNavigateToEdit = { taskId -> navController.navigate("edit_task/$taskId") },
-                            )
-                        }
-
-                        // Экран создания задачи
-                        composable(Screen.CREATE_TASK) {
-                            CreateTaskRoute(
-                                onBackClick = { navController.popBackStack() },
-                                onTaskCreated = {
-                                    tasksViewModel.refresh()
-                                    navController.popBackStack()
-                                },
-                                onNavigateToAssignees = { navController.navigate(Screen.CHOOSE_ASSIGNEE) },
-                                onNavigateToProject = { navController.navigate(Screen.CHOOSE_PROJECT) },
-                                onNavigateToDate = { navController.navigate(Screen.CHOOSE_DATE) },
-                                viewModel = createTaskViewModel,
-                            )
-                        }
-
-                        // Экран редактирования задачи
-                        composable(
-                            route = Screen.EDIT_TASK,
-                            arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
-                        ) {
-                            EditTaskRoute(
-                                onNavigateBack = { navController.popBackStack() },
-                                onTaskSaved = {
-                                    tasksViewModel.refresh()
-                                    navController.popBackStack()
-                                },
-                                onTaskDeleted = {
-                                    tasksViewModel.refresh()
-                                    navController.popBackStack()
-                                },
-                                // Экраны выбора для edit пока не подключены — заглушки
-                                onNavigateToAssignees = { },
-                                onNavigateToProject = { },
-                                onNavigateToDate = { },
-                            )
-                        }
-
-                        // Экран выбора исполнителей
-                        composable(Screen.CHOOSE_ASSIGNEE) {
-                            ChooseAssigneeRoute(
-                                onBackClick = { navController.popBackStack() },
-                                onConfirmSelection = { assignees ->
-                                    createTaskViewModel.confirmAssigneeSelection(assignees)
-                                    navController.popBackStack()
-                                },
-                                viewModel = createTaskViewModel,
-                            )
-                        }
-
-                        // Экран выбора проекта
-                        composable(Screen.CHOOSE_PROJECT) {
-                            ChooseProjectRoute(
-                                onBackClick = { navController.popBackStack() },
-                                onConfirmSelection = { project ->
-                                    createTaskViewModel.confirmProjectSelection(project)
-                                    navController.popBackStack()
-                                },
-                                viewModel = createTaskViewModel,
-                            )
-                        }
-
-                    // var isAuthenticated by remember { mutableStateOf(false) } // Для тестирования окна авторизации
+                    // false — безопасный дефолт: если Firebase упал на старте, пользователь
+                    // увидит AuthScreen, а не «Системную ошибку» на TasksScreen.
+                    var isAuthenticated by remember {
+                        mutableStateOf(
+                            runCatching { authRepository.getCurrentUserUid() != null }
+                                .getOrDefault(false),
+                        )
+                    }
 
                     if (isAuthenticated) {
                         val navController = rememberNavController()
@@ -171,7 +73,7 @@ class MainActivity : ComponentActivity() {
                         val tasksViewModel: TasksScreenViewModel = viewModel()
 
                         NavHost(navController = navController, startDestination = Screen.TASKS) {
-                            // Экран Мои задачи
+                            // Мои задачи
                             composable(Screen.TASKS) {
                                 TasksRoute(
                                     viewModel = tasksViewModel,
@@ -182,7 +84,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // Экран Проекты
+                            // Проекты
                             composable(Screen.PROJECTS) {
                                 ProjectsRoute(
                                     onNavigateToCreateProject = {},
@@ -190,20 +92,18 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // Экран просмотра задачи
+                            // Просмотр задачи
                             composable(
                                 route = Screen.TASK_DETAIL,
-                                arguments = listOf(navArgument("taskId") {
-                                    type = NavType.StringType
-                                }),
+                                arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
                             ) {
                                 TaskDetailRoute(
                                     onNavigateBack = { navController.popBackStack() },
-                                    onNavigateToEdit = { },
+                                    onNavigateToEdit = { taskId -> navController.navigate("edit_task/$taskId") },
                                 )
                             }
 
-                            // Экран создания задачи
+                            // Создание задачи
                             composable(Screen.CREATE_TASK) {
                                 CreateTaskRoute(
                                     onBackClick = { navController.popBackStack() },
@@ -218,7 +118,28 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // Экран выбора исполнителей
+                            // Редактирование задачи
+                            composable(
+                                route = Screen.EDIT_TASK,
+                                arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+                            ) {
+                                EditTaskRoute(
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onTaskSaved = {
+                                        tasksViewModel.refresh()
+                                        navController.popBackStack()
+                                    },
+                                    onTaskDeleted = {
+                                        tasksViewModel.refresh()
+                                        navController.popBackStack()
+                                    },
+                                    onNavigateToAssignees = { },
+                                    onNavigateToProject = { },
+                                    onNavigateToDate = { },
+                                )
+                            }
+
+                            // Выбор исполнителей
                             composable(Screen.CHOOSE_ASSIGNEE) {
                                 ChooseAssigneeRoute(
                                     onBackClick = { navController.popBackStack() },
@@ -230,7 +151,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // Экран выбора проекта
+                            // Выбор проекта
                             composable(Screen.CHOOSE_PROJECT) {
                                 ChooseProjectRoute(
                                     onBackClick = { navController.popBackStack() },
@@ -242,7 +163,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            // Экран выбора даты
+                            // Выбор даты
                             composable(Screen.CHOOSE_DATE) {
                                 ChooseDateRoute(
                                     onBackClick = { navController.popBackStack() },
