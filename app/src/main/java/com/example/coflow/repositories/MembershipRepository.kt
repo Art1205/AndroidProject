@@ -1,6 +1,7 @@
 package com.example.coflow.repositories
 
 import com.example.coflow.models.MembershipModel
+import kotlinx.coroutines.flow.Flow
 import com.example.coflow.repositories.dto.MembershipAddDto
 import com.example.coflow.repositories.dto.MembershipUpdateDto
 
@@ -58,4 +59,16 @@ interface MembershipRepository {
 
     /** Удаляет членство по ID документа. */
     suspend fun deleteMember(id: String): Result<Unit>
+
+    /**
+     * Наблюдает за списком участников проекта в реальном времени.
+     *
+     * Это холодный [Flow]: при подписке сразу приходит текущий список,
+     * затем — изменения коллекции `memberships`, отфильтрованной по `projectId`.
+     *
+     * - Пустой список — валидное состояние (в проекте пока нет участников).
+     * - При ошибке слушателя отправляется [Result.failure], поток закрывается.
+     * - Подписка снимается при отмене сбора.
+     */
+    fun observeByProjectId(id: String): Flow<Result<List<MembershipModel>>>
 }

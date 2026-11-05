@@ -250,6 +250,9 @@ class FirebaseProjectRepositoryImpl(
         } catch (e: Exception) {
             Result.failure(Exception(e.message ?: "Ошибка удаления проекта"))
         }
+
+    override fun observeByUserId(id: String): Flow<Result<List<ProjectModel>>> =
+        observeProjectsByUserId(id)
 }
 
 private fun ProjectModel.toFirestoreMap(): Map<String, Any> =

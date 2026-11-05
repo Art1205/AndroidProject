@@ -75,4 +75,6 @@ interface ProjectRepository {
      * Документ остаётся в базе, но пропадает из списков.
      */
     suspend fun deleteProject(id: String): Result<Unit>
+
+    fun observeByUserId(id: String): Flow<Result<List<ProjectModel>>>
 }

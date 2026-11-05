@@ -127,6 +127,38 @@ class FirebaseTaskRepositoryImpl(
             awaitClose { registration.remove() }
         }
 
+    /**
+     * Реализация [TaskRepository.observeById] через [callbackFlow] и снапшот-слушатель
+     *
+     * При удалении документа отправляется [Result.failure], но поток не закрывается —
+     * это позволяет продолжить наблюдение, если задачу пересоздадут с тем же ID.
+     *
+     * @see TaskRepository.observeById
+     */
+    override fun observeById(id: String): Flow<Result<TaskModel>> =
+        callbackFlow {
+            val registration = taskCollection
+                .document(id)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(
+                            Result.failure(
+                                Exception(error.message ?: "Ошибка наблюдения за задачей"),
+                            ),
+                        )
+                        close()
+                    } else {
+                        val task = snapshot?.let { fromDocument(it) }
+                        if (task == null) {
+                            trySend(Result.failure(Exception("Задача не найдена")))
+                        } else {
+                            trySend(Result.success(task))
+                        }
+                    }
+                }
+            awaitClose { registration.remove() }
+        }
+
     override suspend fun addTask(task: TaskAddDto): Result<TaskModel> =
         try {
             val taskDocument = taskCollection.document()

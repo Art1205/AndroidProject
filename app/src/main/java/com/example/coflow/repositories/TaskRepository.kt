@@ -72,4 +72,11 @@ interface TaskRepository {
 
     /** Удаляет задачу по ID. Возвращает [Result.failure], если удалить не удалось. */
     suspend fun deleteTask(id: String): Result<Unit>
+
+    /**
+    * Наблюдает за одной задачей по её ID в реальном времени.
+    * Это холодный [Flow]: при подписке сразу приходит текущее состояние задачи,
+    * затем — изменения документа из Firestore.
+    */
+    fun observeById(id: String): Flow<Result<TaskModel>>
 }
