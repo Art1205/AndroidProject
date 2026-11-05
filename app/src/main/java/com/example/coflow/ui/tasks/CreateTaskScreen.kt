@@ -2,13 +2,19 @@ package com.example.coflow.ui.tasks
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -19,8 +25,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.coflow.R
-import com.example.coflow.ui.components.*
-import com.example.coflow.ui.theme.*
+import com.example.coflow.ui.components.CoFlowGlassTextField
+import com.example.coflow.ui.components.CoFlowPrimaryButton
+import com.example.coflow.ui.components.CoFlowScreenHeader
+import com.example.coflow.ui.theme.CoFlowSpacing
+import com.example.coflow.ui.theme.CoFlowTheme
+import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
 
 @Composable
 fun CreateTaskScreen(

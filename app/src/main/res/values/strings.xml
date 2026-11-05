@@ -105,6 +105,16 @@
     <string name="notification_message">Интерфейс уведомлений ещё не реализован.</string>
     <string name="dialog_ok">Понятно</string>
 
+    <!-- Строка для подтверждения действия с задачей -->
+    <string name="task_action_confirm_take">Взять задачу?</string>
+    <string name="task_action_confirm_complete">Завершить задачу?</string>
+    <string name="task_action_taken">Вы успешно взяли задачу</string>
+    <string name="task_action_completed">Задача выполнена успешно</string>
+    <string name="task_action_button_take">Взять</string>
+    <string name="task_action_button_complete">Выполнить</string>
+    <string name="task_action_button_cancel">Отмена</string>
+
+
     <!-- Навигация -->
     <string name="navigation_tasks">Мои задачи</string>
     <string name="navigation_projects">Проекты</string>
@@ -129,10 +139,27 @@
 
     <plurals name="selected_assignees_count">
         <item quantity="one">Выбран %d исполнитель</item>
-        <item quantity="few">Выбрано %d исполнителя</item>
+        <item quantity="few">Выбрано %d исполнитель</item>
         <item quantity="many">Выбрано %d исполнителей</item>
         <item quantity="other">Выбрано %d исполнителей</item>
     </plurals>
+
+    <!-- Экран создания проекта -->
+    <string name="create_project_header">Создание проекта</string>
+    <string name="create_project_name_label">Название</string>
+    <string name="create_project_name_placeholder">Название проекта</string>
+    <string name="create_project_description_label">Описание</string>
+    <string name="create_project_description_placeholder">Описание проекта</string>
+    <string name="create_project_participants_label">Участники</string>
+    <string name="create_project_participants_title">Участники</string>
+    <string name="create_project_add_participant">Добавить участника</string>
+    <string name="create_project_button">Создать проект</string>
+    <string name="create_project_cancel">Отмена</string>
+    <string name="create_project_remove_participant">Удалить участника</string>
+    <string name="create_project_cancel_invite_dialog_title">Отмена приглашения</string>
+    <string name="create_project_cancel_invite_dialog_message">Отменить приглашение для %1$s?</string>
+    <string name="create_project_cancel_invite_confirm">Отменить</string>
+    <string name="create_project_unresolved_invites">Проект создан. Не удалось пригласить: %1$s</string>
 
     <!-- Сообщения редактирования задачи -->
     <string name="edit_task_saved">Задача сохранена</string>
@@ -156,8 +183,8 @@
     <plurals name="task_selected_assignees_count">
         <item quantity="one">Вы и ещё %d участник</item>
         <item quantity="few">Вы и ещё %d участника</item>
-        <item quantity="many">Вы и ещё %d участников</item>
-        <item quantity="other">Вы и ещё %d участников</item>
+        <item quantity="many">Вы и ещё %d участника</item>
+        <item quantity="other">Вы и ещё %d участника</item>
     </plurals>
 
     <!-- Детали задачи -->

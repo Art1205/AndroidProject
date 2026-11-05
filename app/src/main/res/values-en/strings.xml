@@ -105,6 +105,15 @@
         <string name="notification_message">Notifications interface not implemented yet.</string>
         <string name="dialog_ok">Got it</string>
 
+        <!-- Строка для подтверждения действия с задачей -->
+        <string name="task_action_confirm_take">Take task?</string>
+        <string name="task_action_confirm_complete">Complete task?</string>
+        <string name="task_action_taken">Task taken successfully</string>
+        <string name="task_action_completed">Task completed successfully</string>
+        <string name="task_action_button_take">Take</string>
+        <string name="task_action_button_complete">Complete</string>
+        <string name="task_action_button_cancel">Cancel</string>
+
         <!-- Навигация -->
         <string name="navigation_tasks">My tasks</string>
         <string name="navigation_projects">Projects</string>
@@ -131,6 +140,23 @@
             <item quantity="one">Selected %d assignee</item>
             <item quantity="other">Selected %d assignees</item>
         </plurals>
+
+    <!-- Экран создания проекта -->
+    <string name="create_project_header">Create project</string>
+    <string name="create_project_name_label">Name</string>
+    <string name="create_project_name_placeholder">Project name</string>
+    <string name="create_project_description_label">Description</string>
+    <string name="create_project_description_placeholder">Project description</string>
+    <string name="create_project_participants_label">Participants</string>
+    <string name="create_project_participants_title">Participants</string>
+    <string name="create_project_add_participant">Add participant</string>
+    <string name="create_project_button">Create project</string>
+    <string name="create_project_cancel">Cancel</string>
+    <string name="create_project_remove_participant">Remove participant</string>
+    <string name="create_project_cancel_invite_dialog_title">Cancel invitation</string>
+    <string name="create_project_cancel_invite_dialog_message">Cancel the invitation for %1$s?</string>
+    <string name="create_project_cancel_invite_confirm">Cancel invitation</string>
+    <string name="create_project_unresolved_invites">Project created. Could not invite: %1$s</string>
 
     <!-- Описание задачи-->
     <string name="edit_task_saved">Task saved</string>

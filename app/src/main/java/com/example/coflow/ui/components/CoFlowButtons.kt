@@ -4,10 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +37,7 @@ fun CoFlowPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     height: Dp = 52.dp, // Единственный параметр, который варьировался (48 или 52)
+    leadingIcon: String? = null,
 ) {
     Button(
         onClick = onClick,
@@ -49,7 +53,13 @@ fun CoFlowPrimaryButton(
             ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 1.dp, disabledElevation = 0.dp),
     ) {
-        Text(text = text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (leadingIcon != null) {
+                CoFlowIcon(name = leadingIcon, modifier = Modifier.size(18.dp), color = Color.White)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(text = text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 

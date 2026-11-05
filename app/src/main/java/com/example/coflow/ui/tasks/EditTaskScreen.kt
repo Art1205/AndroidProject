@@ -29,8 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -41,8 +41,6 @@ import com.example.coflow.ui.components.CoFlowGlassTextField
 import com.example.coflow.ui.components.CoFlowScreenHeader
 import com.example.coflow.ui.theme.CoFlowSpacing
 import com.example.coflow.ui.theme.coFlowTasksBackgroundBrush
-import kotlin.collections.joinToString
-import androidx.lifecycle.createSavedStateHandle
 
 @Composable
 fun EditTaskScreen(
@@ -192,14 +190,16 @@ fun EditTaskRoute(
     onNavigateToAssignees: () -> Unit,
     onNavigateToProject: () -> Unit,
     onNavigateToDate: () -> Unit,
-    //viewModel: EditTaskViewModel = viewModel(),
-    viewModel: EditTaskViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer {
-                EditTaskViewModel(createSavedStateHandle())
-            }
-        },
-    ),
+    // viewModel: EditTaskViewModel = viewModel(),
+    viewModel: EditTaskViewModel =
+        viewModel(
+            factory =
+                viewModelFactory {
+                    initializer {
+                        EditTaskViewModel(createSavedStateHandle())
+                    }
+                },
+        ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deleteConfirmText = stringResource(R.string.edit_task_delete_confirm)
@@ -251,8 +251,8 @@ fun EditTaskRoute(
     }
 }
 
-//// Заглушка для получения задачи по ID
-//private fun getMockTask(taskId: Int): Task =
+// // Заглушка для получения задачи по ID
+// private fun getMockTask(taskId: Int): Task =
 //    when (taskId) {
 //        1 -> {
 //            Task(

@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -21,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.coflow.repositories.FirebaseAuthRepositoryImpl
 import com.example.coflow.ui.auth.AuthRoute
+import com.example.coflow.ui.projects.CreateProjectRoute
 import com.example.coflow.ui.projects.ProjectsRoute
 import com.example.coflow.ui.tasks.ChooseAssigneeRoute
 import com.example.coflow.ui.tasks.ChooseDateRoute
@@ -42,6 +44,7 @@ object Screen {
     const val CHOOSE_DATE = "choose_date"
     const val TASK_DETAIL = "task_detail/{taskId}"
     const val PROJECTS = "projects"
+    const val CREATE_PROJECT = "create_project"
     const val EDIT_TASK = "edit_task/{taskId}"
 }
 
@@ -81,21 +84,39 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToTaskDetail = { taskId -> navController.navigate("task_detail/$taskId") },
                                     onNavigateToProjects = { navController.navigateToTab(Screen.PROJECTS) },
                                     onNavigateToProfile = { },
+                                    onTaskSwipe = {},
                                 )
                             }
 
                             // Проекты
                             composable(Screen.PROJECTS) {
                                 ProjectsRoute(
-                                    onNavigateToCreateProject = {},
+                                    onNavigateToCreateProject = { navController.navigate(Screen.CREATE_PROJECT) },
                                     onNavigateToTasks = { navController.navigateToTab(Screen.TASKS) },
+                                )
+                            }
+
+                            // Экран создания проекта
+                            composable(Screen.CREATE_PROJECT) {
+                                val context = LocalContext.current
+
+                                CreateProjectRoute(
+                                    onBackClick = { navController.popBackStack() },
+                                    onProjectCreated = {
+                                        navController.popBackStack()
+                                    },
                                 )
                             }
 
                             // Просмотр задачи
                             composable(
                                 route = Screen.TASK_DETAIL,
-                                arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+                                arguments =
+                                    listOf(
+                                        navArgument("taskId") {
+                                            type = NavType.StringType
+                                        },
+                                    ),
                             ) {
                                 TaskDetailRoute(
                                     onNavigateBack = { navController.popBackStack() },

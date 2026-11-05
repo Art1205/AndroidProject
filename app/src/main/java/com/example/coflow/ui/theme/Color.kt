@@ -15,6 +15,9 @@ object CoFlowColors {
     val Blue = Color(0xFF245BDB)
     val BlueLight = Color(0xFF8DB4FF)
 
+    // Зеленый
+    val Green = Color(0xFF20A65A)
+
     // Неактивная рамка полей ввода
     val BlueBorder = Color(0xFF9BBEFF)
 
@@ -40,51 +43,47 @@ object CoFlowColors {
 // =====================================================
 // ФОН — вертикальный градиент экрана
 // =====================================================
-fun coFlowBackgroundBrush(): Brush {
-    return Brush.verticalGradient(
-        colorStops = arrayOf(
-            0.0f to CoFlowColors.BackgroundTop,
-            0.22f to CoFlowColors.BackgroundLight,
-            0.58f to CoFlowColors.BackgroundMiddle,
-            1.0f to CoFlowColors.BackgroundBottom
-        )
+fun coFlowBackgroundBrush(): Brush =
+    Brush.verticalGradient(
+        colorStops =
+            arrayOf(
+                0.0f to CoFlowColors.BackgroundTop,
+                0.22f to CoFlowColors.BackgroundLight,
+                0.58f to CoFlowColors.BackgroundMiddle,
+                1.0f to CoFlowColors.BackgroundBottom,
+            ),
     )
-}
 
-fun coFlowTasksBackgroundBrush(): Brush {
-    return Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFFF2F6FF),
-            Color(0xFFEAF1FF),
-            Color(0xFFEDF3FF)
-        )
+fun coFlowTasksBackgroundBrush(): Brush =
+    Brush.verticalGradient(
+        colors =
+            listOf(
+                Color(0xFFF2F6FF),
+                Color(0xFFEAF1FF),
+                Color(0xFFEDF3FF),
+            ),
     )
-}
 
 // =====================================================
 // ПОЛЯ ВВОДА — единое оформление OutlinedTextField
 // =====================================================
 @Composable
-fun coFlowAuthFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = CoFlowColors.TextPrimary,
-    unfocusedTextColor = CoFlowColors.TextPrimary,
-
-    focusedContainerColor = CoFlowColors.White.copy(alpha = 0.35f),
-    unfocusedContainerColor = CoFlowColors.White.copy(alpha = 0.28f),
-
-    focusedBorderColor = CoFlowColors.Blue,
-    unfocusedBorderColor = CoFlowColors.BlueBorder,
-
-    focusedLabelColor = CoFlowColors.Blue,
-    unfocusedLabelColor = CoFlowColors.TextPrimary,
-
-    focusedPlaceholderColor = CoFlowColors.TextSecondary,
-    unfocusedPlaceholderColor = CoFlowColors.TextSecondary,
-
-    errorBorderColor = CoFlowColors.Error,
-    errorLabelColor = CoFlowColors.Error,
-    errorSupportingTextColor = CoFlowColors.Error
-)
+fun coFlowAuthFieldColors() =
+    OutlinedTextFieldDefaults.colors(
+        focusedTextColor = CoFlowColors.TextPrimary,
+        unfocusedTextColor = CoFlowColors.TextPrimary,
+        focusedContainerColor = CoFlowColors.White.copy(alpha = 0.35f),
+        unfocusedContainerColor = CoFlowColors.White.copy(alpha = 0.28f),
+        focusedBorderColor = CoFlowColors.Blue,
+        unfocusedBorderColor = CoFlowColors.BlueBorder,
+        focusedLabelColor = CoFlowColors.Blue,
+        unfocusedLabelColor = CoFlowColors.TextPrimary,
+        focusedPlaceholderColor = CoFlowColors.TextSecondary,
+        unfocusedPlaceholderColor = CoFlowColors.TextSecondary,
+        errorBorderColor = CoFlowColors.Error,
+        errorLabelColor = CoFlowColors.Error,
+        errorSupportingTextColor = CoFlowColors.Error,
+    )
 
 // =====================================================
 // Glassmorphism-стили CoFlow (для Кири и Валеры)

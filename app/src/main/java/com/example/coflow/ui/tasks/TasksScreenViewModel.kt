@@ -43,6 +43,7 @@ data class TaskRowUi(
     val status: TaskStatus,
     val isDone: Boolean,
     val isOverdue: Boolean,
+    val isMine: Boolean = false,
 )
 
 data class TaskGroupUi(
@@ -193,6 +194,7 @@ class TasksScreenViewModel(
                                         task.deadline.isBefore(
                                             LocalDateTime.now(ZoneOffset.UTC),
                                         ) && task.status != TaskStatus.DONE,
+                                    isMine = task.authorId == uid || task.assigneeId == uid,
                                 )
                             }
 
@@ -262,6 +264,11 @@ class TasksScreenViewModel(
                 }
             state.copy(groups = updatedGroups)
         }
+    }
+
+    fun onTaskSwipe(task: TaskRowUi) {
+        // TODO: Здесь позже будет реализована логика
+        // взятия задачи или изменения её статуса, работайте друзья
     }
 
     private fun applyFiltersAndGrouping() {

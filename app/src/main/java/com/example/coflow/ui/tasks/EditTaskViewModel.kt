@@ -63,6 +63,7 @@ class EditTaskViewModel(
 
     // Читаем taskId напрямую из аргументов навигации "edit_task/{taskId}"
     val taskId = savedStateHandle.get<String>("taskId").orEmpty()
+
     init {
         if (taskId.isNotBlank()) {
             loadTask()
@@ -83,20 +84,25 @@ class EditTaskViewModel(
 
             // 1. Сама задача
             val taskResult = taskRepository.getById(taskId)
-            val task = taskResult.getOrElse { error ->
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = error.message ?: "Ошибка загрузки задачи",
-                    )
+            val task =
+                taskResult.getOrElse { error ->
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = error.message ?: "Ошибка загрузки задачи",
+                        )
+                    }
+                    return@launch
                 }
-                return@launch
-            }
 
             // 2. Название проекта
             val projectName =
                 if (task.projectId.isNotBlank()) {
-                    projectRepository.getById(task.projectId).getOrNull()?.title.orEmpty()
+                    projectRepository
+                        .getById(task.projectId)
+                        .getOrNull()
+                        ?.title
+                        .orEmpty()
                 } else {
                     ""
                 }
@@ -185,10 +191,11 @@ class EditTaskViewModel(
                             id = updated.id,
                             title = updated.title,
                             description = updated.description,
-                            assignees = current.assignees
-                                .split(", ")
-                                .map { it.trim() }
-                                .filter { it.isNotBlank() },
+                            assignees =
+                                current.assignees
+                                    .split(", ")
+                                    .map { it.trim() }
+                                    .filter { it.isNotBlank() },
                             projectName = current.project,
                             dueDate = current.dueDate,
                         ),
