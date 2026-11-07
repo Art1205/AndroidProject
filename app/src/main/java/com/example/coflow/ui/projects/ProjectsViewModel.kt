@@ -75,7 +75,7 @@ class ProjectsViewModel(
                 }
 
                 projectRepository
-                    .observeProjectsByUserId(userId = uid)
+                    .observeByUserId(id = uid)
                     .collect { result ->
                         result.fold(
                             onSuccess = { projects ->

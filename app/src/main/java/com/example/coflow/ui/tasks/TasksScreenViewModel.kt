@@ -153,7 +153,7 @@ class TasksScreenViewModel(
                     // Real-time подписка на задачи каждого проекта
                     val taskFlows =
                         projects.map { project ->
-                            taskRepository.observeTasksByProjectId(project.id)
+                            taskRepository.observeByProjectId(project.id)
                         }
 
                     if (taskFlows.isEmpty()) {

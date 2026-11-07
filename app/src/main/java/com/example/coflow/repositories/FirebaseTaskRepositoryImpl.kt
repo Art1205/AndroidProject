@@ -98,35 +98,6 @@ class FirebaseTaskRepositoryImpl(
             awaitClose { registration.remove() }
         }
 
-    override fun observeTasksByProjectId(id: String): Flow<Result<List<TaskModel>>> =
-        callbackFlow {
-            val projectDocument = projectCollection.document(id)
-            val registration =
-                taskCollection
-                    .whereEqualTo("projectId", projectDocument)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            trySend(
-                                Result.failure(
-                                    Exception(error.message ?: "Ошибка наблюдения за задачами"),
-                                ),
-                            )
-                            close()
-                        } else {
-                            trySend(
-                                Result.success(
-                                    snapshot
-                                        ?.documents
-                                        ?.mapNotNull { fromDocument(it) }
-                                        .orEmpty(),
-                                ),
-                            )
-                        }
-                    }
-
-            awaitClose { registration.remove() }
-        }
-
     /**
      * Реализация [TaskRepository.observeById] через [callbackFlow] и снапшот-слушатель
      *
