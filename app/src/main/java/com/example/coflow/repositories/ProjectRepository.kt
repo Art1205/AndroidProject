@@ -50,7 +50,7 @@ interface ProjectRepository {
      * в которых он состоит как участник. Изменения членства и документов
      * проектов приходят без повторной подписки.
      */
-    fun observeProjectsByUserId(userId: String): Flow<Result<List<ProjectModel>>>
+    fun observeByUserId(id: String): Flow<Result<List<ProjectModel>>>
 
     /**
      * Создаёт проект из [ProjectAddDto].
@@ -75,6 +75,4 @@ interface ProjectRepository {
      * Документ остаётся в базе, но пропадает из списков.
      */
     suspend fun deleteProject(id: String): Result<Unit>
-
-    fun observeByUserId(id: String): Flow<Result<List<ProjectModel>>>
 }
